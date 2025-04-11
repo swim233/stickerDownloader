@@ -77,6 +77,7 @@ func (s StickerDownloader) DownloadStickerSet(u tgbotapi.Update) ([]byte, error,
 				addErr(err)
 			}
 			file.Close()
+			wg.Done()
 		}(sticker)
 	}
 	wg.Wait()
@@ -93,7 +94,7 @@ func (s StickerDownloader) DownloadStickerSet(u tgbotapi.Update) ([]byte, error,
 		logger.Error(err.Error())
 	} else {
 		zipfile, err := compressFiles(stickerSet.Name)
-		return zipfile, err, stickerSet.Name
+		return zipfile, err, stickerSet.Title
 	}
 	return nil, err, ""
 }
