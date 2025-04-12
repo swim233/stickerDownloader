@@ -34,24 +34,34 @@ func (m MessageSender) ButtonMessageSender(u tgbotapi.Update) error {
 }
 func (m MessageSender) ThisSender(u tgbotapi.Update) error {
 	chatID := u.CallbackQuery.Message.Chat.ID
-	dl := StickerDownloader{}
-	msg := tgbotapi.NewPhoto(chatID, tgbotapi.FileBytes{Bytes: func(u tgbotapi.Update) []byte {
-		data, _ := dl.DownloadFile(u)
-		return data
-	}(u)})
-	utils.Bot.Send(msg)
 	u.CallbackQuery.Answer(false, "正在下载单个图片")
+	dl := StickerDownloader{}
+	var msg tgbotapi.Chattable
+	if u.CallbackQuery.Message.ReplyToMessage.Sticker.IsVideo {
+		msg = tgbotapi.NewDocument(chatID, tgbotapi.FileBytes{Bytes: func(u tgbotapi.Update) []byte {
+			data, _ := dl.DownloadFile(u)
+			return data
+		}(u), Name: u.CallbackQuery.Message.ReplyToMessage.Sticker.SetName+".webm"})
+	} else {
+		msg = tgbotapi.NewPhoto(chatID, tgbotapi.FileBytes{Bytes: func(u tgbotapi.Update) []byte {
+			data, _ := dl.DownloadFile(u)
+			return data
+		}(u)})
+	}
+
+	utils.Bot.Send(msg)
+
 	u.CallbackQuery.Delete()
 	return nil
 }
 
 func (m MessageSender) ZipSender(u tgbotapi.Update) error {
 	chatID := u.CallbackQuery.Message.Chat.ID
+	u.CallbackQuery.Answer(false, "正在下载贴纸包")
 	dl := StickerDownloader{}
 	data, stickerSetName, _ := dl.DownloadStickerSet(u)
 	msg := tgbotapi.NewDocument(chatID, tgbotapi.FileBytes{Name: stickerSetName + ".zip", Bytes: data})
 	utils.Bot.Send(msg)
-	u.CallbackQuery.Answer(false, "正在下载贴纸包")
 	u.CallbackQuery.Delete()
 	return nil
 }
