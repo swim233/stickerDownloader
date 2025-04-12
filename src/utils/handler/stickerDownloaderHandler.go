@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"sync"
@@ -49,12 +50,13 @@ func (s StickerDownloader) DownloadSetFile(sticker tgbotapi.Sticker) ([]byte, er
 func (s StickerDownloader) DownloadStickerSet(u tgbotapi.Update) ([]byte, string, error) {
 	stickerSet, err := utils.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: s.getStickerSet(u)})
 	var wg sync.WaitGroup
+	var name string
 	var mu sync.Mutex
 	var downloadErrorArray []error
 	if err != nil {
 		return nil, "", err
 	}
-	os.Mkdir(stickerSet.Name, 0744)
+	name, err = os.MkdirTemp(".", "123")
 	for index, sticker := range stickerSet.Stickers {
 		go func(sticker tgbotapi.Sticker) {
 			addErr := func(err error) {
@@ -70,9 +72,10 @@ func (s StickerDownloader) DownloadStickerSet(u tgbotapi.Update) ([]byte, string
 			}
 			var filePath string
 			if sticker.IsVideo {
-				filePath = fmt.Sprintf("%s/%s", stickerSet.Name, strconv.Itoa(index)+".webm")
+
+				filePath = path.Join(name, strconv.Itoa(index)+".webm")
 			} else {
-				filePath = fmt.Sprintf("%s/%s", stickerSet.Name, strconv.Itoa(index)+".webp")
+				filePath = path.Join(name, strconv.Itoa(index)+".webp")
 			}
 			file, err := os.Create(filePath)
 			if err != nil {
@@ -99,7 +102,7 @@ func (s StickerDownloader) DownloadStickerSet(u tgbotapi.Update) ([]byte, string
 	if err != nil {
 		logger.Error(err.Error())
 	} else {
-		zipfile, err := compressFiles(stickerSet.Name)
+		zipfile, err := compressFiles(name)
 		return zipfile, stickerSet.Title, err
 	}
 	return nil, "", err
