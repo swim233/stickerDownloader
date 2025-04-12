@@ -57,15 +57,15 @@ func (s StickerDownloader) DownloadStickerSet(u tgbotapi.Update) ([]byte, string
 		return nil, "", err
 	}
 	name, err = os.MkdirTemp(".", "sticker")
+	wg.Add(len(stickerSet.Stickers))
 	for index, sticker := range stickerSet.Stickers {
-		go func(sticker tgbotapi.Sticker) {
+		go func() {
 			addErr := func(err error) {
 				mu.Lock()
 				downloadErrorArray = append(downloadErrorArray, err)
 				err = nil
 				mu.Unlock()
 			}
-			wg.Add(1)
 			data, err := s.DownloadSetFile(sticker)
 			if err != nil {
 				addErr(err)
@@ -87,7 +87,7 @@ func (s StickerDownloader) DownloadStickerSet(u tgbotapi.Update) ([]byte, string
 			}
 			file.Close()
 			wg.Done()
-		}(sticker)
+		}()
 	}
 	wg.Wait()
 	err = nil
