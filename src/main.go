@@ -17,7 +17,7 @@ func main() {
 		}
 		return false
 	}, messageSender.ButtonMessageSender)
-	b.NewCommandProcessor("test", messageSender.ButtonMessageSender)
+	b.NewCommandProcessor("count", messageSender.CountSender)
 	b.NewCallBackProcessor("this", messageSender.ThisSender)
 	b.NewCallBackProcessor("zip", messageSender.ZipSender)
 	b.Run()

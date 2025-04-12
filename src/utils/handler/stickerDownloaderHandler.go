@@ -85,6 +85,7 @@ func (s StickerDownloader) DownloadStickerSet(u tgbotapi.Update) ([]byte, string
 			if err != nil {
 				addErr(err)
 			}
+			Counter++
 			file.Close()
 			wg.Done()
 		}()

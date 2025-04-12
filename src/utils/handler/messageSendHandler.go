@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"strconv"
+
 	tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
 	utils "github.com/swim233/StickerDownloader/utils"
 	"github.com/swim233/StickerDownloader/utils/logger"
@@ -8,6 +10,9 @@ import (
 
 type MessageSender struct {
 }
+
+var Counter int
+var PackCounter int
 
 func (m MessageSender) MessageSender(u tgbotapi.Update) error {
 	dl := StickerDownloader{}
@@ -21,7 +26,14 @@ func (m MessageSender) MessageSender(u tgbotapi.Update) error {
 	}
 	return nil
 }
+func (m MessageSender) CountSender(u tgbotapi.Update) error {
+	chatID := u.Message.From.ID
 
+	msg := tgbotapi.NewMessage(chatID, "本次运行已下载贴纸 : "+strconv.Itoa(Counter)+"\n"+"本次运行已下载贴纸包 : "+strconv.Itoa(PackCounter))
+	utils.Bot.Send(msg)
+	return nil
+
+}
 func (m MessageSender) ButtonMessageSender(u tgbotapi.Update) error {
 	chatID := u.Message.From.ID
 	msg := tgbotapi.NewMessage(chatID, "请选择要下载的方式")
@@ -43,6 +55,7 @@ func (m MessageSender) ThisSender(u tgbotapi.Update) error {
 				return data
 			}(u), Name: u.CallbackQuery.Message.ReplyToMessage.Sticker.SetName + ".webm"})
 			msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
+			Counter++
 			utils.Bot.Send(msg)
 
 		} else {
@@ -51,6 +64,7 @@ func (m MessageSender) ThisSender(u tgbotapi.Update) error {
 				return data
 			}(u)})
 			msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
+			Counter++
 			utils.Bot.Send(msg)
 
 		}
@@ -67,8 +81,18 @@ func (m MessageSender) ZipSender(u tgbotapi.Update) error {
 		u.CallbackQuery.Answer(false, "正在下载贴纸包")
 		dl := StickerDownloader{}
 		data, stickerSetName, _ := dl.DownloadStickerSet(u)
+		if len(data) == 0 {
+
+			msg := tgbotapi.NewMessage(chatID, "贴纸包为空！")
+			msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
+			utils.Bot.Send(msg)
+			u.CallbackQuery.Delete()
+			return nil
+
+		}
 		msg := tgbotapi.NewDocument(chatID, tgbotapi.FileBytes{Name: stickerSetName + ".zip", Bytes: data})
 		msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
+		PackCounter++
 		utils.Bot.Send(msg)
 		u.CallbackQuery.Delete()
 		return nil
