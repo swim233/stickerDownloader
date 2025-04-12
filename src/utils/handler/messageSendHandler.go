@@ -24,7 +24,7 @@ func (m MessageSender) MessageSender(u tgbotapi.Update) error {
 
 func (m MessageSender) ButtonMessageSender(u tgbotapi.Update) error {
 	chatID := u.Message.From.ID
-	msg := tgbotapi.NewMessage(chatID, "button test")
+	msg := tgbotapi.NewMessage(chatID, "请选择要下载的方式")
 	msg.ReplyToMessageID = u.Message.MessageID
 	button1 := tgbotapi.NewInlineKeyboardButtonData("下载单个图片", "this")
 	button2 := tgbotapi.NewInlineKeyboardButtonData("下载贴纸包", "zip")
@@ -41,6 +41,7 @@ func (m MessageSender) ThisSender(u tgbotapi.Update) error {
 	}(u)})
 	utils.Bot.Send(msg)
 	u.CallbackQuery.Answer(false, "正在下载单个图片")
+	u.CallbackQuery.Delete()
 	return nil
 }
 
@@ -51,5 +52,6 @@ func (m MessageSender) ZipSender(u tgbotapi.Update) error {
 	msg := tgbotapi.NewDocument(chatID, tgbotapi.FileBytes{Name: stickerSetName + ".zip", Bytes: data})
 	utils.Bot.Send(msg)
 	u.CallbackQuery.Answer(false, "正在下载贴纸包")
+	u.CallbackQuery.Delete()
 	return nil
 }

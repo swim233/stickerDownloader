@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 
 	tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
@@ -54,7 +55,7 @@ func (s StickerDownloader) DownloadStickerSet(u tgbotapi.Update) ([]byte, string
 		return nil, "", err
 	}
 	os.Mkdir(stickerSet.Name, 0744)
-	for _, sticker := range stickerSet.Stickers {
+	for index, sticker := range stickerSet.Stickers {
 		go func(sticker tgbotapi.Sticker) {
 			addErr := func(err error) {
 				mu.Lock()
@@ -68,10 +69,10 @@ func (s StickerDownloader) DownloadStickerSet(u tgbotapi.Update) ([]byte, string
 				addErr(err)
 			}
 			var filePath string
-			if sticker.IsAnimated {
-				filePath = fmt.Sprintf("%s/%s", stickerSet.Name, sticker.FileID+".gif")
+			if sticker.IsVideo {
+				filePath = fmt.Sprintf("%s/%s", stickerSet.Name, strconv.Itoa(index)+".webm")
 			} else {
-				filePath = fmt.Sprintf("%s/%s", stickerSet.Name, sticker.FileID+".webp")
+				filePath = fmt.Sprintf("%s/%s", stickerSet.Name, strconv.Itoa(index)+".webp")
 			}
 			file, err := os.Create(filePath)
 			if err != nil {
@@ -200,6 +201,6 @@ func compressFiles(dir string) (data []byte, err error) {
 	if closeErr != nil {
 		return nil, closeErr
 	}
-
+	os.RemoveAll(dir)
 	return buf.Bytes(), nil
 }
