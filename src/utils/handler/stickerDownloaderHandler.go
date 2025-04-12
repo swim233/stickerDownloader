@@ -97,10 +97,6 @@ func (s StickerDownloader) DownloadStickerSet(u tgbotapi.Update) ([]byte, string
 			combinedError += err.Error() + "; "
 		}
 		logger.Error(combinedError)
-		err = nil
-	}
-	if err != nil {
-		logger.Error(err.Error())
 	} else {
 		zipfile, err := compressFiles(name)
 		return zipfile, stickerSet.Title, err
