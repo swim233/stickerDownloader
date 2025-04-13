@@ -20,6 +20,7 @@ import (
 type StickerDownloader struct {
 }
 
+// 下载单个贴纸
 func (s StickerDownloader) DownloadFile(u tgbotapi.Update) ([]byte, error) {
 	url, _ := s.getUrl(u)
 	rsps, err := http.Get(url)
@@ -33,6 +34,8 @@ func (s StickerDownloader) DownloadFile(u tgbotapi.Update) ([]byte, error) {
 	}
 	return data, nil
 }
+
+// 下载贴纸集中的单个文件
 func (s StickerDownloader) DownloadSetFile(sticker tgbotapi.Sticker) ([]byte, error) {
 	url, _ := s.getSetUrl(sticker)
 	rsps, err := http.Get(url)
@@ -47,6 +50,7 @@ func (s StickerDownloader) DownloadSetFile(sticker tgbotapi.Sticker) ([]byte, er
 	return data, nil
 }
 
+// 下载贴纸集
 func (s StickerDownloader) DownloadStickerSet(u tgbotapi.Update) ([]byte, string, error) {
 	stickerSet, err := utils.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: s.getStickerSet(u)})
 	var wg sync.WaitGroup
@@ -57,15 +61,19 @@ func (s StickerDownloader) DownloadStickerSet(u tgbotapi.Update) ([]byte, string
 		return nil, "", err
 	}
 	name, err = os.MkdirTemp(".", "sticker")
+	addErr := func(err error) {//错误处理
+		mu.Lock()
+		downloadErrorArray = append(downloadErrorArray, err)
+		err = nil
+		mu.Unlock()
+	}
+	if err != nil {
+		addErr(err)
+	}
 	wg.Add(len(stickerSet.Stickers))
 	for index, sticker := range stickerSet.Stickers {
 		go func() {
-			addErr := func(err error) {
-				mu.Lock()
-				downloadErrorArray = append(downloadErrorArray, err)
-				err = nil
-				mu.Unlock()
-			}
+
 			data, err := s.DownloadSetFile(sticker)
 			if err != nil {
 				addErr(err)
@@ -105,6 +113,7 @@ func (s StickerDownloader) DownloadStickerSet(u tgbotapi.Update) ([]byte, string
 	return nil, "", err
 }
 
+// 获取文件url
 func (s StickerDownloader) getUrl(update tgbotapi.Update) (url string, err error) {
 	fileID := s.getFileID(update)
 	FileURL, err := func(bot tgbotapi.BotAPI, fileID string) (string, error) {
@@ -119,6 +128,8 @@ func (s StickerDownloader) getUrl(update tgbotapi.Update) (url string, err error
 	}
 	return FileURL, nil
 }
+
+// 获取贴纸集url
 func (s StickerDownloader) getSetUrl(sticker tgbotapi.Sticker) (url string, err error) {
 	fileID := sticker.FileID
 	FileURL, err := func(bot tgbotapi.BotAPI, fileID string) (string, error) {
@@ -134,15 +145,19 @@ func (s StickerDownloader) getSetUrl(sticker tgbotapi.Sticker) (url string, err 
 	return FileURL, nil
 }
 
+// 获取文件FileID
 func (s StickerDownloader) getFileID(u tgbotapi.Update) string {
 	fileID := u.CallbackQuery.Message.ReplyToMessage.Sticker.FileID
 	return fileID
 }
+
+// 获取贴纸集
 func (s StickerDownloader) getStickerSet(u tgbotapi.Update) string {
 	stickerSetName := u.CallbackQuery.Message.ReplyToMessage.Sticker.SetName
 	return stickerSetName
 }
 
+// 压缩文件
 func compressFiles(dir string) (data []byte, err error) {
 	// 创建一个内存缓冲区
 	var buf bytes.Buffer
