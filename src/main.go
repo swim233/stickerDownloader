@@ -18,7 +18,15 @@ func main() {
 		return false
 	}, messageSender.ButtonMessageSender)
 	b.NewCommandProcessor("count", messageSender.CountSender)
-	b.NewCallBackProcessor("this", messageSender.ThisSender)
+	b.NewCallBackProcessor("this", messageSender.FormatChose)
 	b.NewCallBackProcessor("zip", messageSender.ZipSender)
+	b.NewCallBackProcessor("webp", func(u tgbotapi.Update) error {
+		err := messageSender.ThisSender("webp", u)
+		return err
+	})
+	b.NewCallBackProcessor("png", func(u tgbotapi.Update) error {
+		err := messageSender.ThisSender("png", u)
+		return err
+	})
 	b.Run()
 }

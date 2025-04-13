@@ -6,11 +6,13 @@ import (
 
 	tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
 	utils "github.com/swim233/StickerDownloader/utils"
+	"github.com/swim233/StickerDownloader/utils/logger"
 )
 
 type MessageSender struct {
 }
 
+// 新建线程池
 var downloaderPool = sync.Pool{
 	New: func() any {
 		return &StickerDownloader{}
@@ -41,12 +43,13 @@ func (m MessageSender) ButtonMessageSender(u tgbotapi.Update) error {
 	return nil
 }
 
-// 单个贴纸下载
-func (m MessageSender) ThisSender(u tgbotapi.Update) error {
+// 单个WebP贴纸下载
+func (m MessageSender) ThisSender(fmt string, u tgbotapi.Update) error {
 	go func(u tgbotapi.Update) error {
 		chatID := u.CallbackQuery.Message.Chat.ID
 		u.CallbackQuery.Answer(false, "正在下载单个图片")
 		dl := downloaderPool.Get().(*StickerDownloader)
+
 		if u.CallbackQuery.Message.ReplyToMessage.Sticker.IsVideo { //判断是否webm贴纸
 			msg := tgbotapi.NewDocument(chatID, tgbotapi.FileBytes{Bytes: func(u tgbotapi.Update) []byte {
 				data, _ := dl.DownloadFile(u)
@@ -57,10 +60,23 @@ func (m MessageSender) ThisSender(u tgbotapi.Update) error {
 			utils.Bot.Send(msg)
 
 		} else {
-			msg := tgbotapi.NewPhoto(chatID, tgbotapi.FileBytes{Bytes: func(u tgbotapi.Update) []byte {
-				data, _ := dl.DownloadFile(u)
-				return data
-			}(u)})
+			msg := tgbotapi.NewDocument(chatID, tgbotapi.FileBytes{Bytes: func(u tgbotapi.Update) []byte {
+				if fmt == "webp" {
+					data, _ := dl.DownloadFile(u)
+					return data
+				} else {
+					webp, err := dl.DownloadFile(u)
+					if err != nil {
+						logger.Error(err.Error())
+					}
+					fc := formatConverter{}
+					png, err := fc.convertWebPToPNG(webp)
+					if err != nil {
+						logger.Error(err.Error())
+					}
+					return png
+				}
+			}(u), Name: u.CallbackQuery.Message.ReplyToMessage.Sticker.SetName + "." + fmt})
 			downloaderPool.Put(dl)
 			msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
 			Counter++
@@ -72,6 +88,29 @@ func (m MessageSender) ThisSender(u tgbotapi.Update) error {
 		return nil
 	}(u)
 	return nil
+}
+
+// 格式选择
+func (m MessageSender) FormatChose(u tgbotapi.Update) error {
+	editMsgID := u.CallbackQuery.Message.MessageID
+	ChatID := u.CallbackQuery.Message.Chat.ID
+	editedMsg := tgbotapi.NewEditMessageText(ChatID, editMsgID, "请选择要下载的格式")
+	WebPButton := tgbotapi.NewInlineKeyboardButtonData("WebP", "webp")
+	PNGButton := tgbotapi.NewInlineKeyboardButtonData("PNG", "png")
+	editButton := tgbotapi.NewInlineKeyboardMarkup([]tgbotapi.InlineKeyboardButton{WebPButton, PNGButton})
+	editedMsg.ReplyMarkup = &editButton
+	utils.Bot.Send(editedMsg)
+	return nil
+}
+
+// PNG格式转换
+func (m MessageSender) WebPFormatConverter(webp []byte) []byte {
+	fc := formatConverter{}
+	data, err := fc.convertWebPToPNG(webp)
+	if err != nil {
+		logger.Error(err.Error())
+	}
+	return data
 }
 
 // 贴纸集下载

@@ -61,7 +61,7 @@ func (s StickerDownloader) DownloadStickerSet(u tgbotapi.Update) ([]byte, string
 		return nil, "", err
 	}
 	name, err = os.MkdirTemp(".", "sticker")
-	addErr := func(err error) {//错误处理
+	addErr := func(err error) { //错误处理
 		mu.Lock()
 		downloadErrorArray = append(downloadErrorArray, err)
 		err = nil

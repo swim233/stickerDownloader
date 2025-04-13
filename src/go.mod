@@ -5,4 +5,5 @@ go 1.23.3
 require (
 	github.com/ijnkawakaze/telegram-bot-api v1.0.9
 	github.com/joho/godotenv v1.5.1
+	golang.org/x/image v0.26.0
 )
