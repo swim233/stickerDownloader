@@ -171,8 +171,7 @@ func (m MessageSender) CancelDownload(u tgbotapi.Update) error {
 	u.CallbackQuery.Delete()
 
 	deleteMsg := tgbotapi.NewDeleteMessage(chatID, messageID)
-
-	_, err := utils.Bot.Send(deleteMsg)
+	_, err := utils.Bot.Request(deleteMsg)
 	if err != nil {
 
 		logger.Error(err.Error())
