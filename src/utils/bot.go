@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/swim233/StickerDownloader/utils/logger"
@@ -16,9 +17,10 @@ import (
 var Bot *tgbotapi.BotAPI
 
 type Config struct {
-	Token       string
-	DebugFlag   bool
-	ApiLogLevel int
+	Token             string
+	DebugFlag         bool
+	ApiLogLevel       int
+	WebPToJPEGQuality int
 }
 
 var BotConfig Config
@@ -40,7 +42,7 @@ func InitBot() {
 		defaultEnv := `Token=YOUR_TOKEN_ID
 LogLevel=DEBUG/INFO/WARN/ERROR
 ApiLogLevel=DEBUG/INFO/WARN/ERROR
-DecodeFileMaxSize=1MB
+WebPToJPEGQuality=100
 `
 		if _, err := file.WriteString(defaultEnv); err != nil {
 			logger.Error("写入 .env 文件失败: %v", err)
@@ -61,13 +63,14 @@ DecodeFileMaxSize=1MB
 	adapter.SetLogger(logger.GetInstance())
 	adapter.SetLogLevel(BotConfig.ApiLogLevel)
 	tgbotapi.SetLogger(adapter)
-	qwq, err := tgbotapi.NewBotAPI(BotConfig.Token)
-	Bot = qwq
+	bot, err := tgbotapi.NewBotAPI(BotConfig.Token)
 	if err != nil {
-		logger.Error("%s", BotConfig.Token)
 		logger.Error("%s", err)
 	}
+	BotConfig.WebPToJPEGQuality, err = strconv.Atoi(os.Getenv("WebPToJPEGQuality"))
+	Bot = bot
 	if err != nil {
+		logger.Error("%s", BotConfig.Token)
 		logger.Error("%s", err)
 	}
 

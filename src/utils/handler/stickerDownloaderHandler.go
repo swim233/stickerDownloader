@@ -51,7 +51,7 @@ func (s StickerDownloader) DownloadSetFile(sticker tgbotapi.Sticker) ([]byte, er
 }
 
 // 下载贴纸集
-func (s StickerDownloader) DownloadStickerSet(u tgbotapi.Update) ([]byte, string, error) {
+func (s StickerDownloader) DownloadStickerSet(fmt string, u tgbotapi.Update) ([]byte, string, error) {
 	stickerSet, err := utils.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: s.getStickerSet(u)})
 	var wg sync.WaitGroup
 	var name string
@@ -75,6 +75,7 @@ func (s StickerDownloader) DownloadStickerSet(u tgbotapi.Update) ([]byte, string
 		go func() {
 
 			data, err := s.DownloadSetFile(sticker)
+
 			if err != nil {
 				addErr(err)
 			}
@@ -83,7 +84,17 @@ func (s StickerDownloader) DownloadStickerSet(u tgbotapi.Update) ([]byte, string
 
 				filePath = path.Join(name, strconv.Itoa(index)+".webm")
 			} else {
-				filePath = path.Join(name, strconv.Itoa(index)+".webp")
+				if fmt == "png" {
+					fc := formatConverter{}
+					data, _ = fc.convertWebPToPNG(data)
+					filePath = path.Join(name, strconv.Itoa(index)+".png")
+				} else if fmt == "jpeg" {
+					fc := formatConverter{}
+					data, _ = fc.convertWebPToJPEG(data, utils.BotConfig.WebPToJPEGQuality)
+					filePath = path.Join(name, strconv.Itoa(index)+".jpeg")
+				} else {
+					filePath = path.Join(name, strconv.Itoa(index)+".webp")
+				}
 			}
 			file, err := os.Create(filePath)
 			if err != nil {

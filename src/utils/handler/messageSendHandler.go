@@ -43,7 +43,7 @@ func (m MessageSender) ButtonMessageSender(u tgbotapi.Update) error {
 	return nil
 }
 
-// 单个WebP贴纸下载
+// 单个贴纸下载
 func (m MessageSender) ThisSender(fmt string, u tgbotapi.Update) error {
 	go func(u tgbotapi.Update) error {
 		chatID := u.CallbackQuery.Message.Chat.ID
@@ -64,17 +64,29 @@ func (m MessageSender) ThisSender(fmt string, u tgbotapi.Update) error {
 				if fmt == "webp" {
 					data, _ := dl.DownloadFile(u)
 					return data
+				} else if fmt == "jpeg" {
+					webp, err := dl.DownloadFile(u)
+					if err != nil {
+						logger.Error(err.Error())
+					}
+					fc := formatConverter{} //转换格式
+					jpeg, err := fc.convertWebPToJPEG(webp, utils.BotConfig.WebPToJPEGQuality)
+					if err != nil {
+						logger.Error(err.Error())
+					}
+					return jpeg
 				} else {
 					webp, err := dl.DownloadFile(u)
 					if err != nil {
 						logger.Error(err.Error())
 					}
-					fc := formatConverter{}
+					fc := formatConverter{} //转换格式
 					png, err := fc.convertWebPToPNG(webp)
 					if err != nil {
 						logger.Error(err.Error())
 					}
 					return png
+
 				}
 			}(u), Name: u.CallbackQuery.Message.ReplyToMessage.Sticker.SetName + "." + fmt})
 			downloaderPool.Put(dl)
@@ -91,13 +103,28 @@ func (m MessageSender) ThisSender(fmt string, u tgbotapi.Update) error {
 }
 
 // 格式选择
-func (m MessageSender) FormatChose(u tgbotapi.Update) error {
+func (m MessageSender) ThisFormatChose(u tgbotapi.Update) error {
 	editMsgID := u.CallbackQuery.Message.MessageID
 	ChatID := u.CallbackQuery.Message.Chat.ID
 	editedMsg := tgbotapi.NewEditMessageText(ChatID, editMsgID, "请选择要下载的格式")
 	WebPButton := tgbotapi.NewInlineKeyboardButtonData("WebP", "webp")
 	PNGButton := tgbotapi.NewInlineKeyboardButtonData("PNG", "png")
-	editButton := tgbotapi.NewInlineKeyboardMarkup([]tgbotapi.InlineKeyboardButton{WebPButton, PNGButton})
+	JPEGButton := tgbotapi.NewInlineKeyboardButtonData("JPEG", "jpeg")
+	editButton := tgbotapi.NewInlineKeyboardMarkup([]tgbotapi.InlineKeyboardButton{WebPButton, PNGButton, JPEGButton})
+	editedMsg.ReplyMarkup = &editButton
+	utils.Bot.Send(editedMsg)
+	return nil
+}
+
+// 打包格式选择
+func (m MessageSender) ZipFormatChose(u tgbotapi.Update) error {
+	editMsgID := u.CallbackQuery.Message.MessageID
+	ChatID := u.CallbackQuery.Message.Chat.ID
+	editedMsg := tgbotapi.NewEditMessageText(ChatID, editMsgID, "请选择要下载的格式")
+	WebPButton := tgbotapi.NewInlineKeyboardButtonData("WebP", "zip_webp")
+	PNGButton := tgbotapi.NewInlineKeyboardButtonData("PNG", "zip_png")
+	JPEGButton := tgbotapi.NewInlineKeyboardButtonData("JPEG", "zip_jpeg")
+	editButton := tgbotapi.NewInlineKeyboardMarkup([]tgbotapi.InlineKeyboardButton{WebPButton, PNGButton, JPEGButton})
 	editedMsg.ReplyMarkup = &editButton
 	utils.Bot.Send(editedMsg)
 	return nil
@@ -114,12 +141,12 @@ func (m MessageSender) WebPFormatConverter(webp []byte) []byte {
 }
 
 // 贴纸集下载
-func (m MessageSender) ZipSender(u tgbotapi.Update) error {
+func (m MessageSender) ZipSender(fmt string, u tgbotapi.Update) error {
 	go func(u tgbotapi.Update) error {
 		chatID := u.CallbackQuery.Message.Chat.ID
 		u.CallbackQuery.Answer(false, "正在下载贴纸包")
 		dl := downloaderPool.Get().(*StickerDownloader)
-		data, stickerSetName, _ := dl.DownloadStickerSet(u)
+		data, stickerSetName, _ := dl.DownloadStickerSet(fmt, u)
 
 		//贴纸包判空
 		if len(data) == 0 {
