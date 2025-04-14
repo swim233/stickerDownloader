@@ -21,6 +21,7 @@ type Config struct {
 	DebugFlag         bool
 	ApiLogLevel       int
 	WebPToJPEGQuality int
+	HTTPServerPort    string
 }
 
 var BotConfig Config
@@ -43,6 +44,7 @@ func InitBot() {
 LogLevel=DEBUG/INFO/WARN/ERROR
 ApiLogLevel=DEBUG/INFO/WARN/ERROR
 WebPToJPEGQuality=100
+HTTPServerPort=:8080
 `
 		if _, err := file.WriteString(defaultEnv); err != nil {
 			logger.Error("写入 .env 文件失败: %v", err)

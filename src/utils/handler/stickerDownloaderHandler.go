@@ -60,6 +60,7 @@ func (s StickerDownloader) DownloadStickerSet(fmt string, u tgbotapi.Update) ([]
 	if err != nil {
 		return nil, "", err
 	}
+	logger.Info(stickerSet.Name)
 	name, err = os.MkdirTemp(".", "sticker")
 	addErr := func(err error) { //错误处理
 		mu.Lock()
@@ -95,6 +96,72 @@ func (s StickerDownloader) DownloadStickerSet(fmt string, u tgbotapi.Update) ([]
 				} else {
 					filePath = path.Join(name, strconv.Itoa(index)+".webp")
 				}
+			}
+			file, err := os.Create(filePath)
+			if err != nil {
+				addErr(err)
+			}
+			_, err = file.Write(data)
+			if err != nil {
+				addErr(err)
+			}
+			Counter++
+			file.Close()
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	err = nil
+	if len(downloadErrorArray) > 0 {
+		var combinedError string
+		for _, err := range downloadErrorArray {
+			combinedError += err.Error() + "; "
+		}
+		logger.Error(combinedError)
+	} else {
+		zipfile, err := compressFiles(name)
+		return zipfile, stickerSet.Title, err
+	}
+	return nil, "", err
+}
+
+// HTTP下载贴纸集
+func (s StickerDownloader) HTTPDownloadStickerSet(setName string) ([]byte, string, error) {
+	stickerSet, err := utils.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: setName})
+	var wg sync.WaitGroup
+	var name string
+	var mu sync.Mutex
+	var downloadErrorArray []error
+	if err != nil {
+		return nil, "", err
+	}
+	name, err = os.MkdirTemp(".", "sticker")
+	addErr := func(err error) { //错误处理
+		mu.Lock()
+		downloadErrorArray = append(downloadErrorArray, err)
+		err = nil
+		mu.Unlock()
+	}
+	if err != nil {
+		addErr(err)
+	}
+	wg.Add(len(stickerSet.Stickers))
+	for index, sticker := range stickerSet.Stickers {
+		go func() {
+
+			data, err := s.DownloadSetFile(sticker)
+
+			if err != nil {
+				addErr(err)
+			}
+			var filePath string
+			if sticker.IsVideo {
+
+				filePath = path.Join(name, strconv.Itoa(index)+".webm")
+			} else {
+
+				filePath = path.Join(name, strconv.Itoa(index)+".webp")
+
 			}
 			file, err := os.Create(filePath)
 			if err != nil {

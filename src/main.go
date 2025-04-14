@@ -4,6 +4,7 @@ import (
 	tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
 	"github.com/swim233/StickerDownloader/utils"
 	"github.com/swim233/StickerDownloader/utils/handler"
+	httpserver "github.com/swim233/StickerDownloader/utils/httpServer"
 )
 
 func main() {
@@ -21,7 +22,7 @@ func main() {
 	b.NewCallBackProcessor("this", messageSender.ThisFormatChose)
 	b.NewCallBackProcessor("zip", messageSender.ZipFormatChose)
 	b.NewCallBackProcessor("cancel", messageSender.CancelDownload)
-
+	go httpserver.StartHTTPServer()
 	b.NewCallBackProcessor("webp", func(u tgbotapi.Update) error {
 		err := messageSender.ThisSender("webp", u)
 		return err
