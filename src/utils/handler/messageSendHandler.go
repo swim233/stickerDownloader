@@ -34,13 +34,16 @@ func (m MessageSender) CountSender(u tgbotapi.Update) error {
 // 发送按钮消息
 func (m MessageSender) ButtonMessageSender(u tgbotapi.Update) error {
 	chatID := u.Message.From.ID
-	msg := tgbotapi.NewMessage(chatID, "请选择要下载的方式")
+	stickerSet, err := utils.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: func(u tgbotapi.Update) string {
+		return u.Message.Sticker.SetName
+	}(u)})
+	msg := tgbotapi.NewMessage(chatID, "当前贴纸包 : "+stickerSet.Title+"\n请选择要下载的方式")
 	msg.ReplyToMessageID = u.Message.MessageID
 	button1 := tgbotapi.NewInlineKeyboardButtonData("下载单个图片", "this")
 	button2 := tgbotapi.NewInlineKeyboardButtonData("下载贴纸包", "zip")
 	msg.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{{button1}, {button2}}}
 	utils.Bot.Send(msg)
-	return nil
+	return err
 }
 
 // 单个贴纸下载
