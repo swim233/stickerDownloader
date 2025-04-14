@@ -113,7 +113,8 @@ func (m MessageSender) ThisFormatChose(u tgbotapi.Update) error {
 	WebPButton := tgbotapi.NewInlineKeyboardButtonData("WebP", "webp")
 	PNGButton := tgbotapi.NewInlineKeyboardButtonData("PNG", "png")
 	JPEGButton := tgbotapi.NewInlineKeyboardButtonData("JPEG", "jpeg")
-	editButton := tgbotapi.NewInlineKeyboardMarkup([]tgbotapi.InlineKeyboardButton{WebPButton, PNGButton, JPEGButton})
+	CancelButton := tgbotapi.NewInlineKeyboardButtonData("取消", "cancel")
+	editButton := tgbotapi.InlineKeyboardMarkup{InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{{WebPButton, PNGButton, JPEGButton}, {CancelButton}}}
 	editedMsg.ReplyMarkup = &editButton
 	utils.Bot.Send(editedMsg)
 	return nil
@@ -127,20 +128,11 @@ func (m MessageSender) ZipFormatChose(u tgbotapi.Update) error {
 	WebPButton := tgbotapi.NewInlineKeyboardButtonData("WebP", "zip_webp")
 	PNGButton := tgbotapi.NewInlineKeyboardButtonData("PNG", "zip_png")
 	JPEGButton := tgbotapi.NewInlineKeyboardButtonData("JPEG", "zip_jpeg")
-	editButton := tgbotapi.NewInlineKeyboardMarkup([]tgbotapi.InlineKeyboardButton{WebPButton, PNGButton, JPEGButton})
+	CancelButton := tgbotapi.NewInlineKeyboardButtonData("取消", "cancel")
+	editButton := tgbotapi.InlineKeyboardMarkup{InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{{WebPButton, PNGButton, JPEGButton}, {CancelButton}}}
 	editedMsg.ReplyMarkup = &editButton
 	utils.Bot.Send(editedMsg)
 	return nil
-}
-
-// PNG格式转换
-func (m MessageSender) WebPFormatConverter(webp []byte) []byte {
-	fc := formatConverter{}
-	data, err := fc.convertWebPToPNG(webp)
-	if err != nil {
-		logger.Error(err.Error())
-	}
-	return data
 }
 
 // 贴纸集下载
@@ -169,4 +161,22 @@ func (m MessageSender) ZipSender(fmt string, u tgbotapi.Update) error {
 		return nil
 	}(u)
 	return nil
+}
+
+// 取消
+func (m MessageSender) CancelDownload(u tgbotapi.Update) error {
+
+	chatID := u.CallbackQuery.Message.Chat.ID
+	messageID := u.CallbackQuery.Message.ReplyToMessage.MessageID
+	u.CallbackQuery.Delete()
+
+	deleteMsg := tgbotapi.NewDeleteMessage(chatID, messageID)
+
+	_, err := utils.Bot.Send(deleteMsg)
+	if err != nil {
+
+		logger.Error(err.Error())
+		return err
+	}
+	return err
 }

@@ -20,6 +20,7 @@ func main() {
 	b.NewCommandProcessor("count", messageSender.CountSender)
 	b.NewCallBackProcessor("this", messageSender.ThisFormatChose)
 	b.NewCallBackProcessor("zip", messageSender.ZipFormatChose)
+	b.NewCallBackProcessor("cancel", messageSender.CancelDownload)
 
 	b.NewCallBackProcessor("webp", func(u tgbotapi.Update) error {
 		err := messageSender.ThisSender("webp", u)
@@ -29,7 +30,7 @@ func main() {
 		err := messageSender.ThisSender("png", u)
 		return err
 	})
-		b.NewCallBackProcessor("jpeg", func(u tgbotapi.Update) error {
+	b.NewCallBackProcessor("jpeg", func(u tgbotapi.Update) error {
 		err := messageSender.ThisSender("jpeg", u)
 		return err
 	})
