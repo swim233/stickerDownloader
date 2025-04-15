@@ -128,6 +128,11 @@ func (s StickerDownloader) DownloadStickerSet(fmt string, u tgbotapi.Update) ([]
 
 // HTTP下载贴纸集
 func (s StickerDownloader) HTTPDownloadStickerSet(fmt string, setName string) ([]byte, error) {
+	if fmt != "webp" && fmt != "png" && fmt != "jpeg" {
+		err := errors.New("format is error")
+		downloadCounter.Error++
+		return nil, err
+	}
 	stickerSet, err := utils.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: setName})
 	var wg sync.WaitGroup
 	var name string
@@ -146,6 +151,7 @@ func (s StickerDownloader) HTTPDownloadStickerSet(fmt string, setName string) ([
 	if err != nil {
 		addErr(err)
 	}
+
 	wg.Add(len(stickerSet.Stickers))
 	for index, sticker := range stickerSet.Stickers {
 		go func() {

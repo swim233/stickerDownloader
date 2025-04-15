@@ -32,8 +32,11 @@ func handleStickerPack(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Missing 'name' parameter", http.StatusBadRequest)
 		return
 	}
-	format := "webp"
-	format = r.URL.Query().Get("format")
+	format := r.URL.Query().Get("format")
+	if format == "" {
+		format = "webp" // 默认值
+	}
+
 	download := r.URL.Query().Get("download") == "true"
 	hd := handler.StickerDownloader{}
 
