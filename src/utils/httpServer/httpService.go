@@ -32,11 +32,12 @@ func handleStickerPack(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Missing 'name' parameter", http.StatusBadRequest)
 		return
 	}
-
+	format := "webp"
+	format = r.URL.Query().Get("format")
 	download := r.URL.Query().Get("download") == "true"
 	hd := handler.StickerDownloader{}
 
-	stickerSet, _, err := hd.HTTPDownloadStickerSet(name)
+	stickerSet, err := hd.HTTPDownloadStickerSet(format, name)
 	if err != nil {
 		http.Error(w, "Failed to get sticker set: "+err.Error(), http.StatusInternalServerError)
 		return

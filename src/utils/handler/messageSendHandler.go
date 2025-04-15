@@ -19,13 +19,20 @@ var downloaderPool = sync.Pool{
 	},
 }
 
-var Counter int
-var PackCounter int
+type DownloadCounter struct {
+	Single     int
+	Pack       int
+	HTTPSingle int
+	HTTPPack   int
+	Error      int
+}
+
+var downloadCounter DownloadCounter
 
 // 计数器
 func (m MessageSender) CountSender(u tgbotapi.Update) error {
 	chatID := u.Message.From.ID
-	msg := tgbotapi.NewMessage(chatID, "本次运行已下载贴纸 : "+strconv.Itoa(Counter)+"\n"+"本次运行已下载贴纸包 : "+strconv.Itoa(PackCounter))
+	msg := tgbotapi.NewMessage(chatID, "本次运行已下载贴纸 : "+strconv.Itoa(downloadCounter.Single)+"\n"+"本次运行已下载贴纸包 : "+strconv.Itoa(downloadCounter.Pack)+"\n"+"本次运行HTTP服务器已下载贴纸 : "+strconv.Itoa(downloadCounter.HTTPSingle)+"\n"+"本次运行HTTP服务器已下载贴纸包 : "+strconv.Itoa(downloadCounter.HTTPPack)+"\n"+"本次运行发生错误 : "+strconv.Itoa(downloadCounter.Error))
 
 	utils.Bot.Send(msg)
 	return nil
@@ -59,7 +66,7 @@ func (m MessageSender) ThisSender(fmt string, u tgbotapi.Update) error {
 				return data
 			}(u), Name: u.CallbackQuery.Message.ReplyToMessage.Sticker.SetName + ".webm"})
 			msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
-			Counter++
+			downloadCounter.Single++
 			utils.Bot.Send(msg)
 
 		} else {
@@ -94,7 +101,7 @@ func (m MessageSender) ThisSender(fmt string, u tgbotapi.Update) error {
 			}(u), Name: u.CallbackQuery.Message.ReplyToMessage.Sticker.SetName + "." + fmt})
 			downloaderPool.Put(dl)
 			msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
-			Counter++
+			downloadCounter.Single++
 			utils.Bot.Send(msg)
 
 		}
@@ -155,7 +162,7 @@ func (m MessageSender) ZipSender(fmt string, u tgbotapi.Update) error {
 		}
 		msg := tgbotapi.NewDocument(chatID, tgbotapi.FileBytes{Name: stickerSetName + ".zip", Bytes: data})
 		msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
-		PackCounter++
+		downloadCounter.Pack++
 		utils.Bot.Send(msg) //发送消息
 		u.CallbackQuery.Delete()
 		return nil

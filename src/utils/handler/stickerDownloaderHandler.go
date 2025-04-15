@@ -3,6 +3,7 @@ package handler
 import (
 	"archive/zip"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -105,7 +106,7 @@ func (s StickerDownloader) DownloadStickerSet(fmt string, u tgbotapi.Update) ([]
 			if err != nil {
 				addErr(err)
 			}
-			Counter++
+			downloadCounter.Single++
 			file.Close()
 			wg.Done()
 		}()
@@ -126,14 +127,14 @@ func (s StickerDownloader) DownloadStickerSet(fmt string, u tgbotapi.Update) ([]
 }
 
 // HTTP下载贴纸集
-func (s StickerDownloader) HTTPDownloadStickerSet(setName string) ([]byte, string, error) {
+func (s StickerDownloader) HTTPDownloadStickerSet(fmt string, setName string) ([]byte, error) {
 	stickerSet, err := utils.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: setName})
 	var wg sync.WaitGroup
 	var name string
 	var mu sync.Mutex
 	var downloadErrorArray []error
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	name, err = os.MkdirTemp(".", "sticker")
 	addErr := func(err error) { //错误处理
@@ -160,7 +161,20 @@ func (s StickerDownloader) HTTPDownloadStickerSet(setName string) ([]byte, strin
 				filePath = path.Join(name, strconv.Itoa(index)+".webm")
 			} else {
 
-				filePath = path.Join(name, strconv.Itoa(index)+".webp")
+				if fmt == "png" {
+					fc := formatConverter{}
+					data, _ = fc.convertWebPToPNG(data)
+					filePath = path.Join(name, strconv.Itoa(index)+".png")
+				} else if fmt == "jpeg" {
+					fc := formatConverter{}
+					data, _ = fc.convertWebPToJPEG(data, utils.BotConfig.WebPToJPEGQuality)
+					filePath = path.Join(name, strconv.Itoa(index)+".jpeg")
+				} else if fmt == "webp" {
+					filePath = path.Join(name, strconv.Itoa(index)+".webp")
+				} else {
+					err := errors.New("format is error")
+					addErr(err)
+				}
 
 			}
 			file, err := os.Create(filePath)
@@ -171,7 +185,7 @@ func (s StickerDownloader) HTTPDownloadStickerSet(setName string) ([]byte, strin
 			if err != nil {
 				addErr(err)
 			}
-			Counter++
+			downloadCounter.HTTPSingle++
 			file.Close()
 			wg.Done()
 		}()
@@ -182,13 +196,16 @@ func (s StickerDownloader) HTTPDownloadStickerSet(setName string) ([]byte, strin
 		var combinedError string
 		for _, err := range downloadErrorArray {
 			combinedError += err.Error() + "; "
+			downloadCounter.Error++
 		}
 		logger.Error(combinedError)
+		err := errors.New(combinedError)
+		return nil, err
 	} else {
 		zipfile, err := compressFiles(name)
-		return zipfile, stickerSet.Title, err
+		downloadCounter.HTTPPack++
+		return zipfile, err
 	}
-	return nil, "", err
 }
 
 // 获取文件url
@@ -202,6 +219,7 @@ func (s StickerDownloader) getUrl(update tgbotapi.Update) (url string, err error
 		return fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", bot.Token, file.FilePath), nil
 	}(*utils.Bot, fileID)
 	if err != nil {
+		downloadCounter.Error++
 		return "", err
 	}
 	return FileURL, nil
@@ -218,6 +236,7 @@ func (s StickerDownloader) getSetUrl(sticker tgbotapi.Sticker) (url string, err 
 		return fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", bot.Token, file.FilePath), nil
 	}(*utils.Bot, fileID)
 	if err != nil {
+		downloadCounter.Error++
 		return "", err
 	}
 	return FileURL, nil
