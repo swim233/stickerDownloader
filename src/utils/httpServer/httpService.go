@@ -10,15 +10,19 @@ import (
 )
 
 func StartHTTPServer() {
+	if utils.BotConfig.EnableHTTPServer {
+		logger.Info("HTTP服务器已开启")
+		http.HandleFunc("/stickerpack", handleStickerPack)
 
-	http.HandleFunc("/stickerpack", handleStickerPack)
+		port := utils.BotConfig.HTTPServerPort
 
-	port := utils.BotConfig.HTTPServerPort
-
-	logger.Info("[HTTP] Server started on %s", port)
-	err := http.ListenAndServe(port, nil)
-	if err != nil {
-		logger.Error(err.Error())
+		logger.Info("[HTTP] Server started on %s", port)
+		err := http.ListenAndServe(port, nil)
+		if err != nil {
+			logger.Error(err.Error())
+		}
+	} else {
+		logger.Info("HTTP服务器未开启")
 	}
 }
 

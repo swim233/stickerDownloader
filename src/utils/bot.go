@@ -17,11 +17,12 @@ import (
 var Bot *tgbotapi.BotAPI
 
 type Config struct {
-	Token             string
-	DebugFlag         bool
-	ApiLogLevel       int
-	WebPToJPEGQuality int
-	HTTPServerPort    string
+	Token             string //bot token
+	DebugFlag         bool   // 是否开启debug输出
+	ApiLogLevel       int    //日志等级
+	WebPToJPEGQuality int    // WebP转JPEG的质量 范围为0-100
+	HTTPServerPort    string // HTTP服务器端口
+	EnableHTTPServer  bool   // 是否开启HTTP服务器
 }
 
 var BotConfig Config
@@ -45,6 +46,7 @@ LogLevel=DEBUG/INFO/WARN/ERROR
 ApiLogLevel=DEBUG/INFO/WARN/ERROR
 WebPToJPEGQuality=100
 HTTPServerPort=:8070
+EnableHTTPServer=false
 `
 		if _, err := file.WriteString(defaultEnv); err != nil {
 			logger.Error("写入 .env 文件失败: %v", err)
@@ -76,6 +78,13 @@ HTTPServerPort=:8070
 		logger.Error("%s", err)
 	}
 	BotConfig.HTTPServerPort = os.Getenv("HTTPServerPort")
+
+	enableHTTPServer := os.Getenv("EnableHTTPServer")
+	if enableHTTPServer == "true" {
+		BotConfig.EnableHTTPServer = true
+	} else {
+		BotConfig.EnableHTTPServer = false
+	}
 	proxy := FetchProxy()
 	if proxy != "" {
 		proxyURL, err := url.Parse(proxy)
