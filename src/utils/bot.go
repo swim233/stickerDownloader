@@ -44,7 +44,7 @@ func InitBot() {
 LogLevel=DEBUG/INFO/WARN/ERROR
 ApiLogLevel=DEBUG/INFO/WARN/ERROR
 WebPToJPEGQuality=100
-HTTPServerPort=:8080
+HTTPServerPort=:8070
 `
 		if _, err := file.WriteString(defaultEnv); err != nil {
 			logger.Error("写入 .env 文件失败: %v", err)
@@ -75,7 +75,7 @@ HTTPServerPort=:8080
 		logger.Error("%s", BotConfig.Token)
 		logger.Error("%s", err)
 	}
-
+	BotConfig.HTTPServerPort = os.Getenv("HTTPServerPort")
 	proxy := FetchProxy()
 	if proxy != "" {
 		proxyURL, err := url.Parse(proxy)
