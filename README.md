@@ -22,7 +22,7 @@ API 端点
   - name (必需): 贴纸包的名称。
   - download (可选): 如果为 true，则返回 ZIP 文件；否则返回 JSON 信息。
 - 示例:
-```curl "http://localhost:8080/stickerpack?name=sticker_pack_name"```
+```curl "http://localhost:8070/stickerpack?name=sticker_pack_name"```
 
 - 返回:
   - 成功时返回贴纸包的 JSON 信息。
@@ -36,7 +36,7 @@ API 端点
   - download (必需): 设置为 true 以下载 ZIP 文件。
   - format(可选):从webp/png/jpeg选择一个来决定下载的格式
 - 示例:
-```curl -o stickerpack.zip "http://localhost:8080/stickerpack?name=sticker_pack_name&download=true&format=webp"```
+```curl -o stickerpack.zip "http://localhost:8070/stickerpack?name=sticker_pack_name&download=true&format=webp"```
 
 - 返回:
   - 成功时返回 ZIP 文件。
