@@ -20,11 +20,13 @@ var downloaderPool = sync.Pool{
 }
 
 type DownloadCounter struct {
-	Single     int
-	Pack       int
-	HTTPSingle int
-	HTTPPack   int
-	Error      int
+	Single        int
+	Pack          int
+	HTTPSingle    int
+	HTTPPack      int
+	Error         int
+	Cache         int
+	HitPercentage float64
 }
 
 var downloadCounter DownloadCounter
@@ -32,8 +34,10 @@ var downloadCounter DownloadCounter
 // 计数器
 func (m MessageSender) CountSender(u tgbotapi.Update) error {
 	chatID := u.Message.From.ID
-	msg := tgbotapi.NewMessage(chatID, "本次运行已下载贴纸 : "+strconv.Itoa(downloadCounter.Single)+"\n"+"本次运行已下载贴纸包 : "+strconv.Itoa(downloadCounter.Pack)+"\n"+"本次运行HTTP服务器已下载贴纸 : "+strconv.Itoa(downloadCounter.HTTPSingle)+"\n"+"本次运行HTTP服务器已下载贴纸包 : "+strconv.Itoa(downloadCounter.HTTPPack)+"\n"+"本次运行发生错误 : "+strconv.Itoa(downloadCounter.Error))
-
+	if downloadCounter.Cache != 0 {
+		downloadCounter.HitPercentage = float64(downloadCounter.Cache) / (float64(downloadCounter.Pack) + float64(downloadCounter.HTTPPack)) * 100
+	}
+	msg := tgbotapi.NewMessage(chatID, "本次运行已下载贴纸 : "+strconv.Itoa(downloadCounter.Single)+"\n"+"本次运行已下载贴纸包 : "+strconv.Itoa(downloadCounter.Pack)+"\n"+"本次运行HTTP服务器已下载贴纸 : "+strconv.Itoa(downloadCounter.HTTPSingle)+"\n"+"本次运行HTTP服务器已下载贴纸包 : "+strconv.Itoa(downloadCounter.HTTPPack)+"\n"+"本次运行缓存生效 : "+strconv.Itoa(downloadCounter.Cache)+"\n"+"缓存命中率 : "+strconv.FormatFloat(downloadCounter.HitPercentage, 'f', -1, 64)+"% \n"+"本次运行发生错误 : "+strconv.Itoa(downloadCounter.Error))
 	utils.Bot.Send(msg)
 	return nil
 }

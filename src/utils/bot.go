@@ -17,12 +17,14 @@ import (
 var Bot *tgbotapi.BotAPI
 
 type Config struct {
-	Token             string //bot token
-	DebugFlag         bool   // 是否开启debug输出
-	ApiLogLevel       int    //日志等级
-	WebPToJPEGQuality int    // WebP转JPEG的质量 范围为0-100
-	HTTPServerPort    string // HTTP服务器端口
-	EnableHTTPServer  bool   // 是否开启HTTP服务器
+	Token               string // Telegram Bot Token
+	DebugFlag           bool   // 是否开启debug输出
+	ApiLogLevel         int    // 日志等级
+	WebPToJPEGQuality   int    // WebP转JPEG的质量 范围为0-100
+	HTTPServerPort      string // HTTP服务器端口
+	EnableHTTPServer    bool   // 是否开启HTTP服务器
+	EnableCache         bool   // 是否使用缓存
+	CacheExpirationTime int    // 缓存过期时间,单位 分钟
 }
 
 var BotConfig Config
@@ -41,50 +43,46 @@ func InitBot() {
 		defer file.Close()
 
 		// 写入默认的环境变量内容
-		defaultEnv := `Token=YOUR_TOKEN_ID
+		defaultEnv := `# Telegram Bot Token
+Token=YOUR_TOKEN_ID
+
+# 日志等级 (可选值: DEBUG, INFO, WARN, ERROR)
 LogLevel=DEBUG/INFO/WARN/ERROR
+
+# 是否开启BotAPI debug输出(true/false)
+DebugFlag=true
+
+# API 日志等级 (可选值: DEBUG, INFO, WARN, ERROR)
 ApiLogLevel=DEBUG/INFO/WARN/ERROR
+
+# WebP 转 JPEG 的质量 (范围: 0-100)
 WebPToJPEGQuality=100
+
+# HTTP 服务器端口 (格式: :端口号)
 HTTPServerPort=:8070
+
+# 是否启用 HTTP 服务器 (true/false)
 EnableHTTPServer=false
+
+# 是否启用缓存 (true/false)
+EnableCache=true
+
+# 缓存过期时间 (单位: 分钟)
+CacheExpirationTime=120
 `
 		if _, err := file.WriteString(defaultEnv); err != nil {
 			logger.Error("写入 .env 文件失败: %v", err)
 		}
 		logger.Info(".env 文件已创建，并写入默认内容.")
+		os.Exit(1)
 	}
 	err := godotenv.Load()
 	if err != nil {
 		logger.Error("%s", err)
 	}
 
-	//读取环境变量
-	loglevel := logger.ParseLogLevel(os.Getenv("LogLevel"))
-	BotConfig.ApiLogLevel = logger.ParseLogLevel(os.Getenv("ApiLogLevel"))
-	logger.SetLogLevel(loglevel)
-	BotConfig.Token = os.Getenv("Token")
-	adapter := &logger.TelegramBotApiLoggerAdapter{}
-	adapter.SetLogger(logger.GetInstance())
-	adapter.SetLogLevel(BotConfig.ApiLogLevel)
-	tgbotapi.SetLogger(adapter)
-	bot, err := tgbotapi.NewBotAPI(BotConfig.Token)
-	if err != nil {
-		logger.Error("%s", err)
-	}
-	BotConfig.WebPToJPEGQuality, err = strconv.Atoi(os.Getenv("WebPToJPEGQuality"))
-	Bot = bot
-	if err != nil {
-		logger.Error("%s", BotConfig.Token)
-		logger.Error("%s", err)
-	}
-	BotConfig.HTTPServerPort = os.Getenv("HTTPServerPort")
+	getEnv() //读取环境变量
 
-	enableHTTPServer := os.Getenv("EnableHTTPServer")
-	if enableHTTPServer == "true" {
-		BotConfig.EnableHTTPServer = true
-	} else {
-		BotConfig.EnableHTTPServer = false
-	}
 	proxy := FetchProxy()
 	if proxy != "" {
 		proxyURL, err := url.Parse(proxy)
@@ -146,4 +144,53 @@ func UpdateEnvValue(key, newValue string) error {
 		return fmt.Errorf("写入文件失败: %v", err)
 	}
 	return nil
+}
+
+func getEnv() {
+	var err error
+
+	BotConfig.DebugFlag = (os.Getenv("DebugFlag") == "true") //读取debug输出
+
+	BotConfig.Token = os.Getenv("Token") //读取token
+
+	bot, err := tgbotapi.NewBotAPI(BotConfig.Token) //实例化BotAPI
+	if err != nil {
+		logger.Error("%s", err)
+		err = nil
+	}
+	Bot = bot
+	if err != nil {
+		logger.Error("%s", BotConfig.Token)
+		logger.Error("%s", err)
+		err = nil
+	}
+	Bot.Debug = BotConfig.DebugFlag
+
+	loglevel := logger.ParseLogLevel(os.Getenv("LogLevel")) //读取bot log level
+	logger.SetLogLevel(loglevel)
+
+	BotConfig.ApiLogLevel = logger.ParseLogLevel(os.Getenv("ApiLogLevel")) //读取bot api log level
+	adapter := &logger.TelegramBotApiLoggerAdapter{}
+	adapter.SetLogger(logger.GetInstance())
+	adapter.SetLogLevel(BotConfig.ApiLogLevel)
+	tgbotapi.SetLogger(adapter)
+
+	BotConfig.WebPToJPEGQuality, err = strconv.Atoi(os.Getenv("WebPToJPEGQuality")) //读取WebP转JPEG质量
+	if err != nil {
+		logger.Error(err.Error())
+		err = nil
+	}
+
+	BotConfig.EnableHTTPServer = (os.Getenv("EnableHTTPServer") == "true") //读取是否开启http服务
+
+	BotConfig.HTTPServerPort = os.Getenv("HTTPServerPort") //读取http server 端口
+
+	BotConfig.EnableCache = (os.Getenv("EnableCache") == "true") //读取是否启用缓存
+
+	BotConfig.CacheExpirationTime, err = (strconv.Atoi(os.Getenv("CacheExpirationTime"))) //读取缓存过期时间
+	if err != nil {
+		logger.Error(err.Error())
+		err = nil
+	}
+
 }

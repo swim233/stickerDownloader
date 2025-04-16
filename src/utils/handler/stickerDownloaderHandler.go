@@ -15,6 +15,7 @@ import (
 
 	tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
 	"github.com/swim233/StickerDownloader/utils"
+	"github.com/swim233/StickerDownloader/utils/cache"
 	"github.com/swim233/StickerDownloader/utils/logger"
 )
 
@@ -54,6 +55,14 @@ func (s StickerDownloader) DownloadSetFile(sticker tgbotapi.Sticker) ([]byte, er
 // 下载贴纸集
 func (s StickerDownloader) DownloadStickerSet(fmt string, u tgbotapi.Update) ([]byte, string, error) {
 	stickerSet, err := utils.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: s.getStickerSet(u)})
+	setName := stickerSet.Name
+	stickerNum := len(stickerSet.Stickers)
+	cacheData, found := cache.GetCache(setName + fmt)
+	if found {
+		downloadCounter.Single += stickerNum
+		downloadCounter.Cache++
+		return cacheData, stickerSet.Title, nil
+	}
 	var wg sync.WaitGroup
 	var name string
 	var mu sync.Mutex
@@ -121,6 +130,7 @@ func (s StickerDownloader) DownloadStickerSet(fmt string, u tgbotapi.Update) ([]
 		logger.Error(combinedError)
 	} else {
 		zipfile, err := compressFiles(name)
+		cache.AddCache(stickerSet.Name+fmt, zipfile)
 		return zipfile, stickerSet.Title, err
 	}
 	return nil, "", err
@@ -134,6 +144,14 @@ func (s StickerDownloader) HTTPDownloadStickerSet(fmt string, setName string) ([
 		return nil, err
 	}
 	stickerSet, err := utils.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: setName})
+	stickerNum := len(stickerSet.Stickers)
+	cacheData, found := cache.GetCache(setName + fmt)
+	if found {
+		downloadCounter.HTTPPack++
+		downloadCounter.HTTPSingle += stickerNum
+		downloadCounter.Cache++
+		return cacheData, nil
+	}
 	var wg sync.WaitGroup
 	var name string
 	var mu sync.Mutex
@@ -152,7 +170,7 @@ func (s StickerDownloader) HTTPDownloadStickerSet(fmt string, setName string) ([
 		addErr(err)
 	}
 
-	wg.Add(len(stickerSet.Stickers))
+	wg.Add(stickerNum)
 	for index, sticker := range stickerSet.Stickers {
 		go func() {
 
@@ -210,6 +228,7 @@ func (s StickerDownloader) HTTPDownloadStickerSet(fmt string, setName string) ([
 	} else {
 		zipfile, err := compressFiles(name)
 		downloadCounter.HTTPPack++
+		cache.AddCache(setName+fmt, zipfile)
 		return zipfile, err
 	}
 }

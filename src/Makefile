@@ -20,15 +20,15 @@ build_all: ensure_bin_dir
 	@echo "正在编译全平台的文件"
 	GOARCH=amd64 GOOS=linux go build -o ../bin/$(FILENAME)-amd64-linux-$(VERSION) $(FILE)
 	GOARCH=arm64 GOOS=linux go build -o ../bin/$(FILENAME)-arm64-linux-$(VERSION) $(FILE)
-	GOARCH=amd64 GOOS=windows go build -o ../bin/$(FILENAME)-amd64-windows-$(VERSION) $(FILE)
-	GOARCH=arm64 GOOS=windows go build -o ../bin/$(FILENAME)-arm64-windows-$(VERSION) $(FILE)
+	GOARCH=amd64 GOOS=windows go build -o ../bin/$(FILENAME)-amd64-windows-$(VERSION).exe $(FILE)
+	GOARCH=arm64 GOOS=windows go build -o ../bin/$(FILENAME)-arm64-windows-$(VERSION).exe $(FILE)
 
 test: ensure_bin_dir
 	@echo "正在编译全平台的文件"
 	GOARCH=amd64 GOOS=linux go build -o ../bin/$(FILENAME)-amd64-linux-$(VERSION)-test $(FILE)
 	GOARCH=arm64 GOOS=linux go build -o ../bin/$(FILENAME)-arm64-linux-$(VERSION)-test $(FILE)
-	GOARCH=amd64 GOOS=windows go build -o ../bin/$(FILENAME)-amd64-windows-$(VERSION)-test $(FILE)
-	GOARCH=arm64 GOOS=windows go build -o ../bin/$(FILENAME)-arm64-windows-$(VERSION)-test $(FILE)
+	GOARCH=amd64 GOOS=windows go build -o ../bin/$(FILENAME)-amd64-windows-$(VERSION)-test.exe $(FILE)
+	GOARCH=arm64 GOOS=windows go build -o ../bin/$(FILENAME)-arm64-windows-$(VERSION)-test.exe $(FILE)
 	@sleep 3s
 	@rm ../bin/*test
 	@echo "构筑文件清理完成"
