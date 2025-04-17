@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"fmt"
 	"strconv"
 	"sync"
+	"time"
 
 	tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
 	utils "github.com/swim233/StickerDownloader/utils"
@@ -29,6 +31,8 @@ type DownloadCounter struct {
 	HitPercentage float64
 }
 
+var StartTime time.Time
+
 var downloadCounter DownloadCounter
 
 // 计数器
@@ -37,7 +41,36 @@ func (m MessageSender) CountSender(u tgbotapi.Update) error {
 	if downloadCounter.Cache != 0 {
 		downloadCounter.HitPercentage = float64(downloadCounter.Cache) / (float64(downloadCounter.Pack) + float64(downloadCounter.HTTPPack)) * 100
 	}
-	msg := tgbotapi.NewMessage(chatID, "本次运行已下载贴纸 : "+strconv.Itoa(downloadCounter.Single)+"\n"+"本次运行已下载贴纸包 : "+strconv.Itoa(downloadCounter.Pack)+"\n"+"本次运行HTTP服务器已下载贴纸 : "+strconv.Itoa(downloadCounter.HTTPSingle)+"\n"+"本次运行HTTP服务器已下载贴纸包 : "+strconv.Itoa(downloadCounter.HTTPPack)+"\n"+"本次运行缓存生效 : "+strconv.Itoa(downloadCounter.Cache)+"\n"+"缓存命中率 : "+strconv.FormatFloat(downloadCounter.HitPercentage, 'f', -1, 64)+"% \n"+"本次运行发生错误 : "+strconv.Itoa(downloadCounter.Error))
+	timeString := func(duration time.Duration) string {
+		var timeString string
+		days := duration / (24 * time.Hour)
+		if days > 0 {
+			timeString += fmt.Sprintf("%d天", days)
+		}
+		hours := (duration - days*24*time.Hour) / time.Hour
+		if days > 0 || hours > 0 {
+			timeString += fmt.Sprintf("%d时", hours)
+		}
+		minutes := (duration - days*24*time.Hour - hours*time.Hour) / time.Minute
+		if days > 0 || hours > 0 || minutes > 0 {
+			timeString += fmt.Sprintf("%d分", minutes)
+		}
+		seconds := (duration - days*24*time.Hour - hours*time.Hour - minutes*time.Minute) / time.Second
+		if days > 0 || hours > 0 || minutes > 0 || seconds > 0 {
+			timeString += fmt.Sprintf("%d秒", seconds)
+		}
+		return timeString
+	}(time.Since(StartTime))
+	msg := tgbotapi.NewMessage(chatID,
+		"启动时间 : "+StartTime.Format("2006-01-02 15:04:05")+"\n"+
+			"本次运行时间 : "+timeString+"\n"+
+			"机器人已下载贴纸总数 : "+strconv.Itoa(downloadCounter.Single)+"\n"+
+			"机器人已下载贴纸包数 : "+strconv.Itoa(downloadCounter.Pack)+"\n"+
+			"HTTP服务器已下载贴纸总数 : "+strconv.Itoa(downloadCounter.HTTPSingle)+"\n"+
+			"HTTP服务器已下载贴纸包数 : "+strconv.Itoa(downloadCounter.HTTPPack)+"\n"+
+			"缓存生效次数 : "+strconv.Itoa(downloadCounter.Cache)+"\n"+
+			"缓存命中率 : "+strconv.FormatFloat(downloadCounter.HitPercentage, 'f', -1, 64)+"%\n"+
+			"发生错误数 : "+strconv.Itoa(downloadCounter.Error))
 	utils.Bot.Send(msg)
 	return nil
 }

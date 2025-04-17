@@ -5,6 +5,7 @@ import (
 	"github.com/swim233/StickerDownloader/utils"
 	"github.com/swim233/StickerDownloader/utils/handler"
 	httpserver "github.com/swim233/StickerDownloader/utils/httpServer"
+	"time"
 )
 
 func main() {
@@ -47,5 +48,6 @@ func main() {
 		err := messageSender.ZipSender("jpeg", u)
 		return err
 	})
+	handler.StartTime = time.Now()
 	b.Run()
 }
