@@ -57,12 +57,13 @@ func (s StickerDownloader) DownloadStickerSet(fmt string, u tgbotapi.Update) ([]
 	stickerSet, err := utils.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: s.getStickerSet(u)})
 	setName := stickerSet.Name
 	stickerNum := len(stickerSet.Stickers)
-	cacheData, found := cache.GetCache(setName + fmt)
+	cacheData, found := cache.GetCache(setName + fmt) //查找缓存
 	if found {
 		downloadCounter.Single += stickerNum
 		downloadCounter.Cache++
 		return cacheData, stickerSet.Title, nil
 	}
+
 	var wg sync.WaitGroup
 	var name string
 	var mu sync.Mutex
@@ -130,7 +131,7 @@ func (s StickerDownloader) DownloadStickerSet(fmt string, u tgbotapi.Update) ([]
 		logger.Error(combinedError)
 	} else {
 		zipfile, err := compressFiles(name)
-		cache.AddCache(stickerSet.Name+fmt, zipfile)
+		cache.AddCache(stickerSet.Name+fmt, zipfile) //写入缓存
 		return zipfile, stickerSet.Title, err
 	}
 	return nil, "", err
@@ -145,7 +146,8 @@ func (s StickerDownloader) HTTPDownloadStickerSet(fmt string, setName string) ([
 	}
 	stickerSet, err := utils.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: setName})
 	stickerNum := len(stickerSet.Stickers)
-	cacheData, found := cache.GetCache(setName + fmt)
+
+	cacheData, found := cache.GetCache(setName + fmt) //查找缓存
 	if found {
 		downloadCounter.HTTPPack++
 		downloadCounter.HTTPSingle += stickerNum
@@ -228,7 +230,7 @@ func (s StickerDownloader) HTTPDownloadStickerSet(fmt string, setName string) ([
 	} else {
 		zipfile, err := compressFiles(name)
 		downloadCounter.HTTPPack++
-		cache.AddCache(setName+fmt, zipfile)
+		cache.AddCache(setName+fmt, zipfile) //写入缓存
 		return zipfile, err
 	}
 }

@@ -41,6 +41,7 @@ func (m MessageSender) CountSender(u tgbotapi.Update) error {
 	if downloadCounter.Cache != 0 {
 		downloadCounter.HitPercentage = float64(downloadCounter.Cache) / (float64(downloadCounter.Pack) + float64(downloadCounter.HTTPPack)) * 100
 	}
+
 	timeString := func(duration time.Duration) string {
 		var timeString string
 		days := duration / (24 * time.Hour)
@@ -61,6 +62,7 @@ func (m MessageSender) CountSender(u tgbotapi.Update) error {
 		}
 		return timeString
 	}(time.Since(StartTime))
+
 	msg := tgbotapi.NewMessage(chatID,
 		"启动时间 : "+StartTime.Format("2006-01-02 15:04:05")+"\n"+
 			"本次运行时间 : "+timeString+"\n"+
@@ -81,7 +83,9 @@ func (m MessageSender) ButtonMessageSender(u tgbotapi.Update) error {
 	stickerSet, err := utils.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: func(u tgbotapi.Update) string {
 		return u.Message.Sticker.SetName
 	}(u)})
-	msg := tgbotapi.NewMessage(chatID, "当前贴纸包 : "+stickerSet.Title+"\n请选择要下载的方式")
+	msg := tgbotapi.NewMessage(chatID,
+		"当前贴纸包 : "+stickerSet.Title+"\n"+
+			"请选择要下载的方式")
 	msg.ReplyToMessageID = u.Message.MessageID
 	button1 := tgbotapi.NewInlineKeyboardButtonData("下载单个图片", "this")
 	button2 := tgbotapi.NewInlineKeyboardButtonData("下载贴纸包", "zip")
