@@ -15,9 +15,11 @@ import (
 )
 
 var Bot *tgbotapi.BotAPI
+var HTTPBot *tgbotapi.BotAPI
 
 type Config struct {
 	Token               string // Telegram Bot Token
+	HTTPToken           string // HTTP服务Bot Token
 	DebugFlag           bool   // 是否开启debug输出
 	ApiLogLevel         int    // 日志等级
 	WebPToJPEGQuality   int    // WebP转JPEG的质量 范围为0-100
@@ -45,6 +47,9 @@ func InitBot() {
 		// 写入默认的环境变量内容
 		defaultEnv := `# Telegram Bot Token
 Token=YOUR_TOKEN_ID
+
+# HTTP服务使用的Telegram Bot Token(可以与Telegram Bot Token一致)
+HTTPToken=YOUR_TOKEN_ID
 
 # 日志等级 (可选值: DEBUG, INFO, WARN, ERROR)
 LogLevel=DEBUG/INFO/WARN/ERROR
@@ -153,6 +158,8 @@ func getEnv() {
 
 	BotConfig.Token = os.Getenv("Token") //读取token
 
+	BotConfig.HTTPToken = os.Getenv("HTTPToken") //读取token
+
 	bot, err := tgbotapi.NewBotAPI(BotConfig.Token) //实例化BotAPI
 	if err != nil {
 		logger.Error("%s", err)
@@ -165,6 +172,19 @@ func getEnv() {
 		err = nil
 	}
 	Bot.Debug = BotConfig.DebugFlag
+
+	httpBot, err := tgbotapi.NewBotAPI(BotConfig.HTTPToken) //实例化BotAPI
+	if err != nil {
+		logger.Error("%s", err)
+		err = nil
+	}
+	HTTPBot = httpBot
+	if err != nil {
+		logger.Error("%s", BotConfig.HTTPToken)
+		logger.Error("%s", err)
+		err = nil
+	}
+	HTTPBot.Debug = BotConfig.DebugFlag
 
 	loglevel := logger.ParseLogLevel(os.Getenv("LogLevel")) //读取bot log level
 	logger.SetLogLevel(loglevel)

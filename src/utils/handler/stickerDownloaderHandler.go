@@ -144,7 +144,7 @@ func (s StickerDownloader) HTTPDownloadStickerSet(fmt string, setName string) ([
 		downloadCounter.Error++
 		return nil, err
 	}
-	stickerSet, err := utils.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: setName})
+	stickerSet, err := utils.HTTPBot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: setName})
 	stickerNum := len(stickerSet.Stickers)
 
 	cacheData, found := cache.GetCache(setName + fmt) //查找缓存
@@ -195,11 +195,8 @@ func (s StickerDownloader) HTTPDownloadStickerSet(fmt string, setName string) ([
 					fc := formatConverter{}
 					data, _ = fc.convertWebPToJPEG(data, utils.BotConfig.WebPToJPEGQuality)
 					filePath = path.Join(name, strconv.Itoa(index)+".jpeg")
-				} else if fmt == "webp" {
-					filePath = path.Join(name, strconv.Itoa(index)+".webp")
 				} else {
-					err := errors.New("format is error")
-					addErr(err)
+					filePath = path.Join(name, strconv.Itoa(index)+".webp")
 				}
 
 			}

@@ -20,6 +20,8 @@ func main() {
 		return false
 	}, messageSender.ButtonMessageSender)
 	b.NewCommandProcessor("count", messageSender.CountSender)
+	b.NewCommandProcessor("start", messageSender.StartMessage)
+	b.NewCommandProcessor("help", messageSender.StartMessage)
 	b.NewCallBackProcessor("this", messageSender.ThisFormatChose)
 	b.NewCallBackProcessor("zip", messageSender.ZipFormatChose)
 	b.NewCallBackProcessor("cancel", messageSender.CancelDownload)

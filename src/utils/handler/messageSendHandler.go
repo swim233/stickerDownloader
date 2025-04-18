@@ -42,6 +42,7 @@ func (m MessageSender) CountSender(u tgbotapi.Update) error {
 		downloadCounter.HitPercentage = float64(downloadCounter.Cache) / (float64(downloadCounter.Pack) + float64(downloadCounter.HTTPPack)) * 100
 	}
 
+	//运行时间计算
 	timeString := func(duration time.Duration) string {
 		var timeString string
 		days := duration / (24 * time.Hour)
@@ -226,4 +227,12 @@ func (m MessageSender) CancelDownload(u tgbotapi.Update) error {
 		return err
 	}
 	return err
+}
+
+// 发送欢迎和帮助消息
+func (m MessageSender) StartMessage(u tgbotapi.Update) error {
+	chatID := u.Message.Chat.ID
+	msg := tgbotapi.NewMessage(chatID, "请将贴纸发送给我 我可以下载单个贴纸和贴纸包 并转换成不同的格式")
+	utils.Bot.Send(msg)
+	return nil
 }
