@@ -174,23 +174,25 @@ func getEnv() {
 		err = nil
 	}
 	Bot.Debug = BotConfig.DebugFlag
+	if BotConfig.HTTPToken == BotConfig.Token {
+		HTTPBot = Bot
+	} else {
+		httpBot, err := tgbotapi.NewBotAPI(BotConfig.HTTPToken) //实例化BotAPI
+		if err != nil {
+			logger.Error("%s", err)
+			logger.Error("找不到http token，请检查配置文件")
+			err = nil
+			os.Exit(1)
 
-	httpBot, err := tgbotapi.NewBotAPI(BotConfig.HTTPToken) //实例化BotAPI
-	if err != nil {
-		logger.Error("%s", err)
-		logger.Error("找不到http token，请检查配置文件")
-		err = nil
-		os.Exit(1)
-
+		}
+		HTTPBot = httpBot
+		if err != nil {
+			logger.Error("%s", BotConfig.HTTPToken)
+			logger.Error("%s", err)
+			err = nil
+		}
+		HTTPBot.Debug = BotConfig.DebugFlag
 	}
-	HTTPBot = httpBot
-	if err != nil {
-		logger.Error("%s", BotConfig.HTTPToken)
-		logger.Error("%s", err)
-		err = nil
-	}
-	HTTPBot.Debug = BotConfig.DebugFlag
-
 	loglevel := logger.ParseLogLevel(os.Getenv("LogLevel")) //读取bot log level
 	logger.SetLogLevel(loglevel)
 

@@ -6,7 +6,7 @@ import (
 	"image/jpeg"
 	"image/png"
 
-	_ "golang.org/x/image/webp" // 导入 WebP 解码器
+	_ "golang.org/x/image/webp"
 )
 
 type formatConverter struct {
