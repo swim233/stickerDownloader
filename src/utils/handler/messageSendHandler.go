@@ -106,7 +106,13 @@ func (m MessageSender) ThisSender(fmt string, u tgbotapi.Update) error {
 			msg := tgbotapi.NewDocument(chatID, tgbotapi.FileBytes{Bytes: func(u tgbotapi.Update) []byte {
 				data, _ := dl.DownloadFile(u)
 				return data
-			}(u), Name: u.CallbackQuery.Message.ReplyToMessage.Sticker.SetName + ".webm"})
+			}(u), Name: func(u tgbotapi.Update) string { //贴纸包名字判空
+				if u.CallbackQuery.Message.ReplyToMessage.Sticker.SetName == "" {
+					return "sticker"
+				} else {
+					return u.CallbackQuery.Message.ReplyToMessage.Sticker.SetName
+				}
+			}(u) + ".webm"})
 			msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
 			downloadCounter.Single++
 			utils.Bot.Send(msg)
@@ -140,7 +146,13 @@ func (m MessageSender) ThisSender(fmt string, u tgbotapi.Update) error {
 					return png
 
 				}
-			}(u), Name: u.CallbackQuery.Message.ReplyToMessage.Sticker.SetName + "." + fmt})
+			}(u), Name: func(u tgbotapi.Update) string { //贴纸包名字判空
+				if u.CallbackQuery.Message.ReplyToMessage.Sticker.SetName == "" {
+					return "sticker"
+				} else {
+					return u.CallbackQuery.Message.ReplyToMessage.Sticker.SetName
+				}
+			}(u) + "." + fmt})
 			downloaderPool.Put(dl)
 			msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
 			downloadCounter.Single++
