@@ -24,6 +24,9 @@
 # Telegram Bot Token
 Token=YOUR_TOKEN_ID
 
+# HTTP Server Telegram Bot Token
+HTTPToken=YOUR_TOKEN_ID
+
 # 日志等级 (可选值: DEBUG, INFO, WARN, ERROR)
 LogLevel=DEBUG/INFO/WARN/ERROR
 

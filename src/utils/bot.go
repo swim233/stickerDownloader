@@ -178,7 +178,7 @@ func getEnv() {
 	httpBot, err := tgbotapi.NewBotAPI(BotConfig.HTTPToken) //实例化BotAPI
 	if err != nil {
 		logger.Error("%s", err)
-		logger.Error("找不到token，请检查配置文件")
+		logger.Error("找不到http token，请检查配置文件")
 		err = nil
 		os.Exit(1)
 

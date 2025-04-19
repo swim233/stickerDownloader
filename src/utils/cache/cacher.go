@@ -7,7 +7,7 @@ import (
 	"github.com/swim233/StickerDownloader/utils"
 )
 
-var Cacher = cache.New(time.Duration(utils.BotConfig.CacheExpirationTime*60), time.Duration(600))
+var Cacher = cache.New(time.Duration(utils.BotConfig.CacheExpirationTime*60*int(time.Minute)), time.Duration(600*time.Minute))
 
 // 添加缓存
 func AddCache(name string, inputData []byte) {
