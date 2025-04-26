@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"sync"
 
@@ -54,7 +55,7 @@ func (s StickerDownloader) DownloadSetFile(sticker tgbotapi.Sticker) ([]byte, er
 
 // 下载贴纸集
 func (s StickerDownloader) DownloadStickerSet(fmt string, u tgbotapi.Update) ([]byte, string, int, error) {
-	stickerSet, err := utils.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: s.getStickerSet(u)})
+	stickerSet, err := utils.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: getStickerSet(u)})
 	setName := stickerSet.Name
 	stickerNum := len(stickerSet.Stickers)
 	if utils.BotConfig.EnableCache {
@@ -277,9 +278,20 @@ func (s StickerDownloader) getFileID(u tgbotapi.Update) string {
 }
 
 // 获取贴纸集
-func (s StickerDownloader) getStickerSet(u tgbotapi.Update) string {
-	stickerSetName := u.CallbackQuery.Message.ReplyToMessage.Sticker.SetName
-	return stickerSetName
+func getStickerSet(u tgbotapi.Update) string {
+	var stickerLinkRegex = regexp.MustCompile(`https://t.me/addstickers/([a-zA-Z0-9_]+)`)
+	if u.CallbackQuery != nil && u.CallbackQuery.Message.Sticker != nil {
+		return u.Message.Sticker.SetName
+	}
+	if u.CallbackQuery.Message.ReplyToMessage.Text != "" && stickerLinkRegex.MatchString(u.CallbackQuery.Message.ReplyToMessage.Text) {
+		// 提取 sticker set name
+		matches := stickerLinkRegex.FindStringSubmatch(u.CallbackQuery.Message.ReplyToMessage.Text)
+		if len(matches) > 1 {
+			stickerSetName := matches[1] // 提取的 SetName
+			return stickerSetName
+		}
+	}
+	return ""
 }
 
 // 压缩文件

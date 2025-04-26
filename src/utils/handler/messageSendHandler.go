@@ -80,20 +80,22 @@ func (m MessageSender) CountSender(u tgbotapi.Update) error {
 }
 
 // 发送按钮消息
-func (m MessageSender) ButtonMessageSender(u tgbotapi.Update) error {
+func (m MessageSender) ButtonMessageSender(u tgbotapi.Update, sticker tgbotapi.StickerSet, allowDownloadSingleFile bool) error {
 	chatID := u.Message.From.ID
-	stickerSet, err := utils.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: func(u tgbotapi.Update) string {
-		return u.Message.Sticker.SetName
-	}(u)})
 	msg := tgbotapi.NewMessage(chatID,
-		"当前贴纸包 : "+stickerSet.Title+"\n"+
+		"当前贴纸包 : "+sticker.Title+"\n"+
 			"请选择要下载的方式")
 	msg.ReplyToMessageID = u.Message.MessageID
-	button1 := tgbotapi.NewInlineKeyboardButtonData("下载单个图片", "this")
+	var buttons []tgbotapi.InlineKeyboardButton
+	if allowDownloadSingleFile {
+		button1 := tgbotapi.NewInlineKeyboardButtonData("下载单个图片", "this")
+		buttons = append(buttons, button1)
+	}
 	button2 := tgbotapi.NewInlineKeyboardButtonData("下载贴纸包", "zip")
-	msg.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{{button1}, {button2}}}
+	buttons = append(buttons, button2)
+	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(buttons)
 	utils.Bot.Send(msg)
-	return err
+	return nil
 }
 
 // 单个贴纸下载
@@ -216,7 +218,7 @@ func (m MessageSender) ZipSender(fmt string, u tgbotapi.Update) error {
 
 		}
 		db.RecordUserData(u, int64(len(data)), stickerNum) //记录数据库
-		db.RecordStickerData(u.CallbackQuery.Message.ReplyToMessage.Sticker.SetName, stickerSetTitle)
+		db.RecordStickerData(getStickerSet(u), stickerSetTitle)
 		msg := tgbotapi.NewDocument(chatID, tgbotapi.FileBytes{Name: stickerSetTitle + ".zip", Bytes: data})
 		msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
 		downloadCounter.Pack++
