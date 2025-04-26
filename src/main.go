@@ -1,6 +1,7 @@
 package main
 
 import (
+	"regexp"
 	"time"
 
 	tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
@@ -16,12 +17,38 @@ func main() {
 	utils.Bot.Debug = true
 	b := utils.Bot.AddHandle()
 	messageSender := handler.MessageSender{}
+	var stickerLinkRegex = regexp.MustCompile(`https://t.me/addstickers/([a-zA-Z0-9_]+)`)
 	b.NewProcessor(func(u tgbotapi.Update) bool {
-		if u.Message != nil {
-			return u.Message.Sticker != nil
+		if u.Message == nil {
+			return false
+		}
+		if u.Message.Sticker != nil {
+			// 如果是 sticker，直接传递 sticker 的 set name
+			sticker, err := utils.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: func(u tgbotapi.Update) string {
+				return u.Message.Sticker.SetName
+			}(u)})
+			if err != nil {
+				return false
+			}
+			// 支持下载单个贴纸的用true
+			messageSender.ButtonMessageSender(u, sticker, true)
+			return true
+		}
+		if u.Message.Text != "" && stickerLinkRegex.MatchString(u.Message.Text) {
+			// 提取 sticker set name
+			matches := stickerLinkRegex.FindStringSubmatch(u.Message.Text)
+			if len(matches) > 1 {
+				stickerSetName := matches[1] // 提取的 SetName
+				sticker, err := utils.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: stickerSetName})
+				if err != nil {
+					return false
+				}
+				messageSender.ButtonMessageSender(u, sticker, false)
+				return true
+			}
 		}
 		return false
-	}, messageSender.ButtonMessageSender)
+	}, nil)
 	b.NewCommandProcessor("count", messageSender.CountSender)
 	b.NewCommandProcessor("start", messageSender.StartMessage)
 	b.NewCommandProcessor("help", messageSender.StartMessage)
