@@ -5,11 +5,13 @@ import (
 
 	tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
 	"github.com/swim233/StickerDownloader/utils"
+	"github.com/swim233/StickerDownloader/utils/db"
 	"github.com/swim233/StickerDownloader/utils/handler"
 	httpserver "github.com/swim233/StickerDownloader/utils/httpServer"
 )
 
 func main() {
+	db.InitDB()
 	utils.InitBot()
 	utils.Bot.Debug = true
 	b := utils.Bot.AddHandle()

@@ -53,7 +53,7 @@ func (s StickerDownloader) DownloadSetFile(sticker tgbotapi.Sticker) ([]byte, er
 }
 
 // 下载贴纸集
-func (s StickerDownloader) DownloadStickerSet(fmt string, u tgbotapi.Update) ([]byte, string, error) {
+func (s StickerDownloader) DownloadStickerSet(fmt string, u tgbotapi.Update) ([]byte, string, int, error) {
 	stickerSet, err := utils.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: s.getStickerSet(u)})
 	setName := stickerSet.Name
 	stickerNum := len(stickerSet.Stickers)
@@ -62,7 +62,7 @@ func (s StickerDownloader) DownloadStickerSet(fmt string, u tgbotapi.Update) ([]
 		if found {
 			downloadCounter.Single += stickerNum
 			downloadCounter.Cache++
-			return cacheData, stickerSet.Title, nil
+			return cacheData, stickerSet.Title, 0, nil
 		}
 	}
 
@@ -71,9 +71,9 @@ func (s StickerDownloader) DownloadStickerSet(fmt string, u tgbotapi.Update) ([]
 	var mu sync.Mutex
 	var downloadErrorArray []error
 	if err != nil {
-		return nil, "", err
+		return nil, "", 0, err
 	}
-	logger.Info(stickerSet.Name)
+	logger.Info("%s", stickerSet.Name)
 	name, err = os.MkdirTemp(".", "sticker")
 	addErr := func(err error) { //错误处理
 		mu.Lock()
@@ -130,13 +130,13 @@ func (s StickerDownloader) DownloadStickerSet(fmt string, u tgbotapi.Update) ([]
 		for _, err := range downloadErrorArray {
 			combinedError += err.Error() + "; "
 		}
-		logger.Error(combinedError)
+		logger.Error("%s", combinedError)
 	} else {
 		zipfile, err := compressFiles(name)
 		cache.AddCache(stickerSet.Name+fmt, zipfile) //写入缓存
-		return zipfile, stickerSet.Title, err
+		return zipfile, stickerSet.Title, stickerNum, err
 	}
-	return nil, "", err
+	return nil, "", 0, err
 }
 
 // HTTP下载贴纸集
@@ -225,7 +225,7 @@ func (s StickerDownloader) HTTPDownloadStickerSet(fmt string, setName string) ([
 			combinedError += err.Error() + "; "
 			downloadCounter.Error++
 		}
-		logger.Error(combinedError)
+		logger.Error("%s", combinedError)
 		err := errors.New(combinedError)
 		return nil, err
 	} else {

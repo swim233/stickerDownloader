@@ -8,7 +8,8 @@ import (
 
 	tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
 	utils "github.com/swim233/StickerDownloader/utils"
-	"github.com/swim233/StickerDownloader/utils/logger"
+	"github.com/swim233/StickerDownloader/utils/db"
+	logger "github.com/swim233/StickerDownloader/utils/logger"
 )
 
 type MessageSender struct {
@@ -72,7 +73,7 @@ func (m MessageSender) CountSender(u tgbotapi.Update) error {
 			"HTTP服务器已下载贴纸总数 : "+strconv.Itoa(downloadCounter.HTTPSingle)+"\n"+
 			"HTTP服务器已下载贴纸包数 : "+strconv.Itoa(downloadCounter.HTTPPack)+"\n"+
 			"缓存生效次数 : "+strconv.Itoa(downloadCounter.Cache)+"\n"+
-			"缓存命中率 : "+strconv.FormatFloat(downloadCounter.HitPercentage, 'f', -1, 64)+"%\n"+
+			"缓存命中率 : "+strconv.FormatFloat(downloadCounter.HitPercentage, 'f', 1, 64)+"%\n"+
 			"发生错误数 : "+strconv.Itoa(downloadCounter.Error))
 	utils.Bot.Send(msg)
 	return nil
@@ -105,6 +106,7 @@ func (m MessageSender) ThisSender(fmt string, u tgbotapi.Update) error {
 		if u.CallbackQuery.Message.ReplyToMessage.Sticker.IsVideo { //判断是否webm贴纸
 			msg := tgbotapi.NewDocument(chatID, tgbotapi.FileBytes{Bytes: func(u tgbotapi.Update) []byte {
 				data, _ := dl.DownloadFile(u)
+				db.RecordUserData(u, int64(len(data)), 1)
 				return data
 			}(u), Name: func(u tgbotapi.Update) string { //贴纸包名字判空
 				if u.CallbackQuery.Message.ReplyToMessage.Sticker.SetName == "" {
@@ -119,29 +121,28 @@ func (m MessageSender) ThisSender(fmt string, u tgbotapi.Update) error {
 
 		} else {
 			msg := tgbotapi.NewDocument(chatID, tgbotapi.FileBytes{Bytes: func(u tgbotapi.Update) []byte {
+				webp, err := dl.DownloadFile(u)
+				db.RecordUserData(u, int64(len(webp)), 1)
 				if fmt == "webp" {
-					data, _ := dl.DownloadFile(u)
-					return data
+					return webp
 				} else if fmt == "jpeg" {
-					webp, err := dl.DownloadFile(u)
 					if err != nil {
-						logger.Error(err.Error())
+						logger.Error("%s", err.Error())
 					}
 					fc := formatConverter{} //转换格式
 					jpeg, err := fc.convertWebPToJPEG(webp, utils.BotConfig.WebPToJPEGQuality)
 					if err != nil {
-						logger.Error(err.Error())
+						logger.Error("%s", err.Error())
 					}
 					return jpeg
 				} else {
-					webp, err := dl.DownloadFile(u)
 					if err != nil {
-						logger.Error(err.Error())
+						logger.Error("%s", err.Error())
 					}
 					fc := formatConverter{} //转换格式
 					png, err := fc.convertWebPToPNG(webp)
 					if err != nil {
-						logger.Error(err.Error())
+						logger.Error("%s", err.Error())
 					}
 					return png
 
@@ -202,7 +203,7 @@ func (m MessageSender) ZipSender(fmt string, u tgbotapi.Update) error {
 		chatID := u.CallbackQuery.Message.Chat.ID
 		u.CallbackQuery.Answer(false, "正在下载贴纸包")
 		dl := downloaderPool.Get().(*StickerDownloader)
-		data, stickerSetName, _ := dl.DownloadStickerSet(fmt, u)
+		data, stickerSetTitle, stickerNum, _ := dl.DownloadStickerSet(fmt, u)
 
 		//贴纸包判空
 		if len(data) == 0 {
@@ -214,7 +215,9 @@ func (m MessageSender) ZipSender(fmt string, u tgbotapi.Update) error {
 			return nil
 
 		}
-		msg := tgbotapi.NewDocument(chatID, tgbotapi.FileBytes{Name: stickerSetName + ".zip", Bytes: data})
+		db.RecordUserData(u, int64(len(data)), stickerNum) //记录数据库
+		db.RecordStickerData(u.CallbackQuery.Message.ReplyToMessage.Sticker.SetName, stickerSetTitle)
+		msg := tgbotapi.NewDocument(chatID, tgbotapi.FileBytes{Name: stickerSetTitle + ".zip", Bytes: data})
 		msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
 		downloadCounter.Pack++
 		utils.Bot.Send(msg) //发送消息
@@ -235,7 +238,7 @@ func (m MessageSender) CancelDownload(u tgbotapi.Update) error {
 	_, err := utils.Bot.Request(deleteMsg)
 	if err != nil {
 
-		logger.Error(err.Error())
+		logger.Error("%s", err.Error())
 		return err
 	}
 	return err
