@@ -280,8 +280,8 @@ func (s StickerDownloader) getFileID(u tgbotapi.Update) string {
 // 获取贴纸集
 func getStickerSet(u tgbotapi.Update) string {
 	var stickerLinkRegex = regexp.MustCompile(`https://t.me/addstickers/([a-zA-Z0-9_]+)`)
-	if u.CallbackQuery != nil && u.CallbackQuery.Message.Sticker != nil {
-		return u.Message.Sticker.SetName
+	if u.CallbackQuery != nil && u.CallbackQuery.Message.ReplyToMessage.Sticker != nil {
+		return u.CallbackQuery.Message.ReplyToMessage.Sticker.SetName
 	}
 	if u.CallbackQuery.Message.ReplyToMessage.Text != "" && stickerLinkRegex.MatchString(u.CallbackQuery.Message.ReplyToMessage.Text) {
 		// 提取 sticker set name
