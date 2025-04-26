@@ -8,8 +8,8 @@ import (
 	"time"
 
 	tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"github.com/glebarez/sqlite"
 )
 
 type UserData struct {
