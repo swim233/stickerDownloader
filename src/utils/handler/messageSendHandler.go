@@ -204,6 +204,8 @@ func (m MessageSender) ZipSender(fmt string, u tgbotapi.Update) error {
 	go func(u tgbotapi.Update) error {
 		chatID := u.CallbackQuery.Message.Chat.ID
 		u.CallbackQuery.Answer(false, "正在下载贴纸包")
+		processingMsg := tgbotapi.EditMessageTextConfig{Text: "贴纸包下载中 请稍等... \nDownloading... ", BaseEdit: tgbotapi.BaseEdit{ChatID: chatID, MessageID: u.CallbackQuery.Message.MessageID}}
+		utils.Bot.Send(processingMsg) //TODO 进度汇报
 		dl := downloaderPool.Get().(*StickerDownloader)
 		data, stickerSetTitle, stickerNum, _ := dl.DownloadStickerSet(fmt, u)
 
@@ -218,7 +220,7 @@ func (m MessageSender) ZipSender(fmt string, u tgbotapi.Update) error {
 
 		}
 		db.RecordUserData(u, int64(len(data)), stickerNum) //记录数据库
-		db.RecordStickerData(getStickerSet(u), stickerSetTitle)
+		db.RecordStickerData(getStickerSet(u), stickerSetTitle, u.CallbackQuery.From.ID)
 		msg := tgbotapi.NewDocument(chatID, tgbotapi.FileBytes{Name: stickerSetTitle + ".zip", Bytes: data})
 		msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
 		downloadCounter.Pack++

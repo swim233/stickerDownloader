@@ -7,9 +7,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/glebarez/sqlite"
 	tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
 	"gorm.io/gorm"
-	"github.com/glebarez/sqlite"
 )
 
 type UserData struct {
@@ -27,6 +27,7 @@ type StickerData struct {
 	StickerName        string `gorm:"primaryKey,autoIncrement:false,not null"`
 	StickerTitle       string `gorm:"not null"`
 	RecentDownloadTime string `gorm:"not null,default:0"`
+	LastDownloadUser   int64  `gorm:"default:0"`
 	DownloadCount      int
 }
 
@@ -83,7 +84,7 @@ func RecordUserData(u tgbotapi.Update, fileSize int64, fileCount int) {
 
 }
 
-func RecordStickerData(name string, title string) {
+func RecordStickerData(name string, title string, UserID int64) {
 	newStickerSetData := StickerData{}
 
 	err := DB.Where("sticker_name = ?", name).First(&newStickerSetData).Error
@@ -92,6 +93,7 @@ func RecordStickerData(name string, title string) {
 			StickerName:        name,
 			StickerTitle:       title,
 			DownloadCount:      1,
+			LastDownloadUser:   UserID,
 			RecentDownloadTime: time.Now().Format(time.RFC3339),
 		}).Error
 		if err != nil {
@@ -105,6 +107,7 @@ func RecordStickerData(name string, title string) {
 		newStickerSetData.DownloadCount += 1
 		newStickerSetData.StickerTitle = title
 		newStickerSetData.RecentDownloadTime = time.Now().Format(time.RFC3339)
+		newStickerSetData.LastDownloadUser = UserID
 		err := DB.Where("sticker_name = ?", name).Save(&newStickerSetData).Error
 		if err != nil {
 			DB.Logger.Error(context.Background(), err.Error())
