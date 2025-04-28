@@ -25,7 +25,7 @@
         "Help": "Please send me a sticker. I can download single stickers and sticker packs, and convert them into different formats.",
         "SuccessChangeLanguage": "Your language has been switched to English."
     },
-    "ja": {
+    "jp": {
         "CurrentStickerSet": "現在のスタンプパック",
         "PickDownloadMethod": "ダウンロード方法を選択してください",
         "DownloadSingleSticker": "単一スタンプをダウンロード",
