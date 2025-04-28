@@ -24,5 +24,18 @@
         "Cancel": "Cancel",
         "Help": "Please send me a sticker. I can download single stickers and sticker packs, and convert them into different formats.",
         "SuccessChangeLanguage": "Your language has been switched to English."
+    },
+    "ja": {
+        "CurrentStickerSet": "現在のスタンプパック",
+        "PickDownloadMethod": "ダウンロード方法を選択してください",
+        "DownloadSingleSticker": "単一スタンプをダウンロード",
+        "DownloadStickerPack": "スタンプパックをダウンロード",
+        "DownloadingSingleSticker": "単一画像をダウンロード中",
+        "PickDownloadFormat": "ダウンロード形式を選択してください",
+        "DownloadingStickerSet": "スタンプパックをダウンロード中、少々お待ちください...",
+        "StickerSetIsNull": "スタンプパックが空です！",
+        "Cancel": "キャンセル",
+        "Help": "スタンプを私に送ってください。単一スタンプやスタンプパックをダウンロードし、異なる形式に変換できます。",
+        "SuccessChangeLanguage": "言語が日本語に切り替わりました"
     }
 }
