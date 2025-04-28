@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"regexp"
 	"time"
 
@@ -9,14 +10,20 @@ import (
 	"github.com/swim233/StickerDownloader/utils/db"
 	"github.com/swim233/StickerDownloader/utils/handler"
 	httpserver "github.com/swim233/StickerDownloader/utils/httpServer"
+	"github.com/swim233/StickerDownloader/utils/logger"
 )
 
 func main() {
-	db.InitDB()
-	utils.InitBot()
-	utils.Bot.Debug = true
-	b := utils.Bot.AddHandle()
-	messageSender := handler.MessageSender{}
+	db.InitDB()                              //初始化数据库
+	utils.InitBot()                          //初始化bot配置
+	b := utils.Bot.AddHandle()               //注册handler
+	messageSender := handler.MessageSender{} //实例化handler
+	go httpserver.StartHTTPServer()          //开启http服务器
+	err := handler.LoadTranslations()        //加载i18n文件
+	if err != nil {
+		logger.Error("加载i18文件时出错 : %s", err.Error())
+		os.Exit(1)
+	}
 	var stickerLinkRegex = regexp.MustCompile(`https://t.me/addstickers/([a-zA-Z0-9_]+)`)
 	b.NewProcessor(func(u tgbotapi.Update) bool {
 		if u.Message == nil {
@@ -49,36 +56,44 @@ func main() {
 		}
 		return false
 	}, nil)
-	b.NewCommandProcessor("count", messageSender.CountSender)
-	b.NewCommandProcessor("start", messageSender.StartMessage)
-	b.NewCommandProcessor("help", messageSender.StartMessage)
+	b.NewPrivateCommandProcessor("count", messageSender.CountSender)
+	b.NewPrivateCommandProcessor("help", messageSender.HelpMessage)
+	b.NewPrivateCommandProcessor("start", messageSender.StartMessage)
+	b.NewPrivateCommandProcessor("lang", messageSender.LanguageChose)
 	b.NewCallBackProcessor("this", messageSender.ThisFormatChose)
 	b.NewCallBackProcessor("zip", messageSender.ZipFormatChose)
 	b.NewCallBackProcessor("cancel", messageSender.CancelDownload)
-	go httpserver.StartHTTPServer()
 	b.NewCallBackProcessor("webp", func(u tgbotapi.Update) error {
-		err := messageSender.ThisSender("webp", u)
-		return err
+		return messageSender.ThisSender("webp", u)
+
 	})
 	b.NewCallBackProcessor("png", func(u tgbotapi.Update) error {
-		err := messageSender.ThisSender("png", u)
-		return err
+		return messageSender.ThisSender("png", u)
+
 	})
 	b.NewCallBackProcessor("jpeg", func(u tgbotapi.Update) error {
-		err := messageSender.ThisSender("jpeg", u)
-		return err
+		return messageSender.ThisSender("jpeg", u)
+
 	})
 	b.NewCallBackProcessor("zip_webp", func(u tgbotapi.Update) error {
-		err := messageSender.ZipSender("webp", u)
-		return err
+		return messageSender.ZipSender("webp", u)
+
 	})
 	b.NewCallBackProcessor("zip_png", func(u tgbotapi.Update) error {
-		err := messageSender.ZipSender("png", u)
-		return err
+		return messageSender.ZipSender("png", u)
+
 	})
 	b.NewCallBackProcessor("zip_jpeg", func(u tgbotapi.Update) error {
-		err := messageSender.ZipSender("jpeg", u)
-		return err
+		return messageSender.ZipSender("jpeg", u)
+	})
+	b.NewCallBackProcessor("lang_zh", func(u tgbotapi.Update) error {
+		return messageSender.ChangeUserLanguage(u, "zh")
+	})
+	b.NewCallBackProcessor("lang_en", func(u tgbotapi.Update) error {
+		return messageSender.ChangeUserLanguage(u, "en")
+	})
+	b.NewCallBackProcessor("lang_jp", func(u tgbotapi.Update) error {
+		return messageSender.ChangeUserLanguage(u, "jp")
 	})
 	handler.StartTime = time.Now()
 	b.Run()

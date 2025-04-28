@@ -19,7 +19,7 @@ func StartHTTPServer() {
 		logger.Info("[HTTP] Server started on %s", port)
 		err := http.ListenAndServe(port, nil)
 		if err != nil {
-			logger.Error(err.Error())
+			logger.Error("%s", err.Error())
 		}
 	} else {
 		logger.Info("HTTP服务器未开启")

@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -14,6 +16,22 @@ import (
 
 type MessageSender struct {
 }
+
+type Translations struct {
+	CurrentStickerSet        string `json:"CurrentStickerSet"`
+	PickDownloadMethod       string `json:"PickDownloadMethod"`
+	DownloadSingleSticker    string `json:"DownloadSingleSticker"`
+	DownloadStickerPack      string `json:"DownloadStickerPack"`
+	DownloadingSingleSticker string `json:"DownloadingSingleSticker"`
+	PickDownloadFormat       string `json:"PickDownloadFormat"`
+	DownloadingStickerSet    string `json:"DownloadingStickerSet"`
+	StickerSetIsNull         string `json:"StickerSetIsNull"`
+	Help                     string `json:"Help"`
+	Cancel                   string `json:"Cancel"`
+	SuccessChangeLanguage    string `json:"SuccessChangeLanguage"`
+}
+
+var translations map[string]Translations
 
 // 新建线程池
 var downloaderPool = sync.Pool{
@@ -83,15 +101,15 @@ func (m MessageSender) CountSender(u tgbotapi.Update) error {
 func (m MessageSender) ButtonMessageSender(u tgbotapi.Update, sticker tgbotapi.StickerSet, allowDownloadSingleFile bool) error {
 	chatID := u.Message.From.ID
 	msg := tgbotapi.NewMessage(chatID,
-		"当前贴纸包 : "+sticker.Title+"\n"+
-			"请选择要下载的方式")
+		translations[db.GetUserLanguage(chatID)].CurrentStickerSet+" : "+sticker.Title+"\n"+
+			translations[db.GetUserLanguage(chatID)].PickDownloadMethod)
 	msg.ReplyToMessageID = u.Message.MessageID
 	var buttons []tgbotapi.InlineKeyboardButton
 	if allowDownloadSingleFile {
-		button1 := tgbotapi.NewInlineKeyboardButtonData("下载单个图片", "this")
+		button1 := tgbotapi.NewInlineKeyboardButtonData(translations[db.GetUserLanguage(chatID)].DownloadSingleSticker, "this")
 		buttons = append(buttons, button1)
 	}
-	button2 := tgbotapi.NewInlineKeyboardButtonData("下载贴纸包", "zip")
+	button2 := tgbotapi.NewInlineKeyboardButtonData(translations[db.GetUserLanguage(chatID)].DownloadStickerPack, "zip")
 	buttons = append(buttons, button2)
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(buttons)
 	utils.Bot.Send(msg)
@@ -102,7 +120,8 @@ func (m MessageSender) ButtonMessageSender(u tgbotapi.Update, sticker tgbotapi.S
 func (m MessageSender) ThisSender(fmt string, u tgbotapi.Update) error {
 	go func(u tgbotapi.Update) error {
 		chatID := u.CallbackQuery.Message.Chat.ID
-		u.CallbackQuery.Answer(false, "正在下载单个图片")
+		userID := u.CallbackQuery.Message.From.ID
+		u.CallbackQuery.Answer(false, translations[db.GetUserLanguage(userID)].DownloadingSingleSticker)
 		dl := downloaderPool.Get().(*StickerDownloader)
 
 		if u.CallbackQuery.Message.ReplyToMessage.Sticker.IsVideo { //判断是否webm贴纸
@@ -172,12 +191,13 @@ func (m MessageSender) ThisSender(fmt string, u tgbotapi.Update) error {
 // 格式选择
 func (m MessageSender) ThisFormatChose(u tgbotapi.Update) error {
 	editMsgID := u.CallbackQuery.Message.MessageID
-	ChatID := u.CallbackQuery.Message.Chat.ID
-	editedMsg := tgbotapi.NewEditMessageText(ChatID, editMsgID, "请选择要下载的格式")
+	chatID := u.CallbackQuery.Message.Chat.ID
+	userID := u.CallbackQuery.Message.ReplyToMessage.From.ID
+	editedMsg := tgbotapi.NewEditMessageText(chatID, editMsgID, translations[db.GetUserLanguage(userID)].PickDownloadFormat)
 	WebPButton := tgbotapi.NewInlineKeyboardButtonData("WebP", "webp")
 	PNGButton := tgbotapi.NewInlineKeyboardButtonData("PNG", "png")
 	JPEGButton := tgbotapi.NewInlineKeyboardButtonData("JPEG", "jpeg")
-	CancelButton := tgbotapi.NewInlineKeyboardButtonData("取消", "cancel")
+	CancelButton := tgbotapi.NewInlineKeyboardButtonData(translations[db.GetUserLanguage(userID)].Cancel, "cancel")
 	editButton := tgbotapi.InlineKeyboardMarkup{InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{{WebPButton, PNGButton, JPEGButton}, {CancelButton}}}
 	editedMsg.ReplyMarkup = &editButton
 	utils.Bot.Send(editedMsg)
@@ -187,15 +207,45 @@ func (m MessageSender) ThisFormatChose(u tgbotapi.Update) error {
 // 打包格式选择
 func (m MessageSender) ZipFormatChose(u tgbotapi.Update) error {
 	editMsgID := u.CallbackQuery.Message.MessageID
-	ChatID := u.CallbackQuery.Message.Chat.ID
-	editedMsg := tgbotapi.NewEditMessageText(ChatID, editMsgID, "请选择要下载的格式")
+	chatID := u.CallbackQuery.Message.Chat.ID
+	userID := u.CallbackQuery.Message.ReplyToMessage.From.ID
+	logger.Error("%s", translations[db.GetUserLanguage(userID)].PickDownloadFormat)
+	editedMsg := tgbotapi.NewEditMessageText(chatID, editMsgID, translations[db.GetUserLanguage(userID)].PickDownloadFormat)
 	WebPButton := tgbotapi.NewInlineKeyboardButtonData("WebP", "zip_webp")
 	PNGButton := tgbotapi.NewInlineKeyboardButtonData("PNG", "zip_png")
 	JPEGButton := tgbotapi.NewInlineKeyboardButtonData("JPEG", "zip_jpeg")
-	CancelButton := tgbotapi.NewInlineKeyboardButtonData("取消", "cancel")
+	CancelButton := tgbotapi.NewInlineKeyboardButtonData(translations[db.GetUserLanguage(userID)].Cancel, "cancel")
 	editButton := tgbotapi.InlineKeyboardMarkup{InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{{WebPButton, PNGButton, JPEGButton}, {CancelButton}}}
 	editedMsg.ReplyMarkup = &editButton
 	utils.Bot.Send(editedMsg)
+	return nil
+}
+
+// 语言选择
+func (m MessageSender) LanguageChose(u tgbotapi.Update) error {
+	ChatID := u.Message.Chat.ID
+	CNButton := tgbotapi.NewInlineKeyboardButtonData("🇨🇳 中文", "lang_zh")
+	ENButton := tgbotapi.NewInlineKeyboardButtonData("🇺🇸 English", "lang_en")
+	JPButton := tgbotapi.NewInlineKeyboardButtonData("🇯🇵 Japanese", "lang_jp")
+	CancelButton := tgbotapi.NewInlineKeyboardButtonData("Cancel", "cancel")
+	msgButton := tgbotapi.InlineKeyboardMarkup{InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{{CNButton, ENButton, JPButton}, {CancelButton}}}
+	msg := tgbotapi.NewMessage(ChatID, "请选择语言 \nPlease select Language")
+	msg.ReplyMarkup = msgButton
+	msg.ReplyToMessageID = u.Message.MessageID
+	utils.Bot.Send(msg)
+	return nil
+}
+
+// 语言修改
+func (m MessageSender) ChangeUserLanguage(u tgbotapi.Update, lang string) error {
+	userID := u.CallbackQuery.Message.ReplyToMessage.From.ID
+	err := db.ChangeUserLanguage(userID, lang)
+	if err != nil {
+		logger.Error("%s", err)
+		return err
+	}
+	editMsg := tgbotapi.NewEditMessageText(u.CallbackQuery.Message.ReplyToMessage.From.ID, u.CallbackQuery.Message.MessageID, translations[db.GetUserLanguage(userID)].SuccessChangeLanguage)
+	utils.Bot.Send(editMsg)
 	return nil
 }
 
@@ -203,7 +253,8 @@ func (m MessageSender) ZipFormatChose(u tgbotapi.Update) error {
 func (m MessageSender) ZipSender(fmt string, u tgbotapi.Update) error {
 	go func(u tgbotapi.Update) error {
 		chatID := u.CallbackQuery.Message.Chat.ID
-		u.CallbackQuery.Answer(false, "正在下载贴纸包")
+		userID := u.CallbackQuery.Message.ReplyToMessage.From.ID
+		u.CallbackQuery.Answer(false, translations[db.GetUserLanguage(userID)].DownloadingStickerSet)
 		processingMsg := tgbotapi.EditMessageTextConfig{Text: "贴纸包下载中 请稍等... \nDownloading... ", BaseEdit: tgbotapi.BaseEdit{ChatID: chatID, MessageID: u.CallbackQuery.Message.MessageID}}
 		utils.Bot.Send(processingMsg) //TODO 进度汇报
 		dl := downloaderPool.Get().(*StickerDownloader)
@@ -212,15 +263,15 @@ func (m MessageSender) ZipSender(fmt string, u tgbotapi.Update) error {
 		//贴纸包判空
 		if len(data) == 0 {
 
-			msg := tgbotapi.NewMessage(chatID, "贴纸包为空！")
+			msg := tgbotapi.NewMessage(chatID, translations[db.GetUserLanguage(userID)].StickerSetIsNull)
 			msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
 			utils.Bot.Send(msg)
 			u.CallbackQuery.Delete()
 			return nil
 
 		}
-		db.RecordUserData(u, int64(len(data)), stickerNum) //记录数据库
-		db.RecordStickerData(getStickerSet(u), stickerSetTitle, u.CallbackQuery.From.ID)
+		db.RecordUserData(u, int64(len(data)), stickerNum)                               //记录数据库
+		db.RecordStickerData(getStickerSet(u), stickerSetTitle, u.CallbackQuery.From.ID) //记录贴纸
 		msg := tgbotapi.NewDocument(chatID, tgbotapi.FileBytes{Name: stickerSetTitle + ".zip", Bytes: data})
 		msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
 		downloadCounter.Pack++
@@ -249,9 +300,27 @@ func (m MessageSender) CancelDownload(u tgbotapi.Update) error {
 }
 
 // 发送欢迎和帮助消息
-func (m MessageSender) StartMessage(u tgbotapi.Update) error {
+func (m MessageSender) HelpMessage(u tgbotapi.Update) error {
 	chatID := u.Message.Chat.ID
-	msg := tgbotapi.NewMessage(chatID, "请将贴纸发送给我 我可以下载单个贴纸和贴纸包 并转换成不同的格式")
+	msg := tgbotapi.NewMessage(chatID, "请将贴纸发送给我 我可以下载单个贴纸和贴纸包 并转换成不同的格式 你可以使用 /lang 来切换语言\n\n"+
+		"Please send me the stickers. I can download individual stickers and sticker packs, and convert them into different formats. You can use /lang to switch the language.")
 	utils.Bot.Send(msg)
 	return nil
+}
+func (m MessageSender) StartMessage(u tgbotapi.Update) error {
+	err := m.LanguageChose(u)
+	if err != nil {
+		logger.Error("%s", err)
+	}
+	m.HelpMessage(u)
+	return db.InitUserData(u)
+}
+
+// 加载翻译
+func LoadTranslations() error {
+	data, err := os.ReadFile("locales.json")
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, &translations)
 }

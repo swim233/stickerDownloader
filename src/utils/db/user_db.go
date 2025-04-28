@@ -21,6 +21,7 @@ type UserData struct {
 	DownloadFileSize   int64
 	CreateTime         string `gorm:"not null,default:0"`
 	RecentDownloadTime string `gorm:"not null,default:0"`
+	UserLanguage       string `gorm:"not null,default:'zh'"`
 }
 
 type StickerData struct {
@@ -33,6 +34,7 @@ type StickerData struct {
 
 var DB *gorm.DB
 
+// 初始化数据库
 func InitDB() {
 	os.MkdirAll("db", 0700)
 	db, err := gorm.Open(sqlite.Open("db/data.db"), &gorm.Config{})
@@ -43,6 +45,38 @@ func InitDB() {
 	DB = db
 	DB.AutoMigrate(&UserData{}, &StickerData{})
 }
+
+// 初始化用户数据
+func InitUserData(u tgbotapi.Update) error {
+	user := u.Message.From
+	if user == nil {
+		return errors.New("用户为空")
+	}
+	newUser := UserData{}
+
+	err := DB.Where("user_id = ?", user.ID).First(&newUser).Error
+	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
+		err := DB.Create(UserData{
+			UserID:     user.ID,
+			FirstName:  user.FirstName,
+			LastName:   user.LastName,
+			UserName:   user.UserName,
+			CreateTime: time.Now().Format(time.RFC3339),
+		}).Error
+		if err != nil {
+			DB.Logger.Error(context.Background(), err.Error())
+			return err
+		} else {
+			DB.Logger.Info(context.Background(), "创建成功")
+		}
+	} else if err != nil {
+		fmt.Printf("err: %v\n", err)
+		return err
+	}
+	return err
+}
+
+// 记录用户数据
 func RecordUserData(u tgbotapi.Update, fileSize int64, fileCount int) {
 	user := u.CallbackQuery.From
 	if user == nil {
@@ -84,6 +118,7 @@ func RecordUserData(u tgbotapi.Update, fileSize int64, fileCount int) {
 
 }
 
+// 记录贴纸数据
 func RecordStickerData(name string, title string, UserID int64) {
 	newStickerSetData := StickerData{}
 
@@ -114,4 +149,24 @@ func RecordStickerData(name string, title string, UserID int64) {
 		}
 	}
 
+}
+
+// 获取用户语言
+func GetUserLanguage(UserID int64) string {
+	var lang string
+	err := DB.Model(&UserData{}).Select("user_language").Where("user_id = ?", UserID).Scan(&lang).Error
+	if err != nil {
+		DB.Logger.Error(context.Background(), err.Error())
+	}
+	return lang
+}
+
+// 修改用户语言
+func ChangeUserLanguage(UserID int64, lang string) error {
+	err := DB.Model(&UserData{}).Where("user_id = ?", UserID).Update("user_language", lang).Error
+	if err != nil {
+		DB.Logger.Error(context.Background(), err.Error())
+		return err
+	}
+	return nil
 }

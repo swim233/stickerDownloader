@@ -1,0 +1,28 @@
+{
+    "zh": {
+        "CurrentStickerSet": "当前贴纸包",
+        "PickDownloadMethod": "请选择要下载的方式",
+        "DownloadSingleSticker": "下载单个贴纸",
+        "DownloadStickerPack": "下载贴纸包",
+        "DownloadingSingleSticker": "正在下载单个图片",
+        "PickDownloadFormat": "请选择要下载的格式",
+        "DownloadingStickerSet": "贴纸包下载中 请稍等...",
+        "StickerSetIsNull": "贴纸包为空！",
+        "Cancel": "取消",
+        "Help": "请将贴纸发送给我 我可以下载单个贴纸和贴纸包 并转换成不同的格式",
+        "SuccessChangeLanguage": "您的语言已切换为 中文"
+    },
+    "en": {
+        "CurrentStickerSet": "Current Sticker Pack",
+        "PickDownloadMethod": "Please select a download method",
+        "DownloadSingleSticker": "Download Single Sticker",
+        "DownloadStickerPack": "Download Sticker Pack",
+        "DownloadingSingleSticker": "Downloading a single image...",
+        "PickDownloadFormat": "Please select a download format",
+        "DownloadingStickerSet": "Downloading sticker pack, please wait...",
+        "StickerSetIsNull": "Sticker pack is empty!",
+        "Cancel": "Cancel",
+        "Help": "Please send me a sticker. I can download single stickers and sticker packs, and convert them into different formats.",
+        "SuccessChangeLanguage": "Your language has been switched to English."
+    }
+}
