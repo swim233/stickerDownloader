@@ -21,6 +21,7 @@ import (
 )
 
 type StickerDownloader struct {
+	ID int
 }
 
 // 下载单个贴纸

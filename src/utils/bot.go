@@ -27,6 +27,7 @@ type Config struct {
 	EnableHTTPServer    bool   // 是否开启HTTP服务器
 	EnableCache         bool   // 是否使用缓存
 	CacheExpirationTime int    // 缓存过期时间,单位 分钟
+	MaxConcurrency      int    //最大并发数
 }
 
 var BotConfig Config
@@ -74,6 +75,9 @@ EnableCache=true
 
 # 缓存过期时间 (单位: 分钟)
 CacheExpirationTime=120
+
+#最大并发数
+MaxConcurrency=30
 `
 		if _, err := file.WriteString(defaultEnv); err != nil {
 			logger.Error("写入 .env 文件失败: %v", err)
@@ -204,7 +208,7 @@ func getEnv() {
 
 	BotConfig.WebPToJPEGQuality, err = strconv.Atoi(os.Getenv("WebPToJPEGQuality")) //读取WebP转JPEG质量
 	if err != nil {
-		logger.Error(err.Error())
+		logger.Error("%s", err.Error())
 		err = nil
 	}
 
@@ -216,8 +220,15 @@ func getEnv() {
 
 	BotConfig.CacheExpirationTime, err = (strconv.Atoi(os.Getenv("CacheExpirationTime"))) //读取缓存过期时间
 	if err != nil {
-		logger.Error(err.Error())
+		logger.Error("读取配置文件时出错: %s", err.Error())
+		os.Exit(1)
 		err = nil
+	}
+
+	BotConfig.MaxConcurrency, err = (strconv.Atoi(os.Getenv("MaxConcurrency"))) // 读取最大并发数
+	if err != nil {
+		logger.Error("读取配置文件时出错: %s", err.Error())
+		os.Exit(1)
 	}
 
 }

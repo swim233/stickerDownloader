@@ -24,6 +24,7 @@ func main() {
 		logger.Error("加载i18文件时出错 : %s", err.Error())
 		os.Exit(1)
 	}
+
 	var stickerLinkRegex = regexp.MustCompile(`https://t.me/addstickers/([a-zA-Z0-9_]+)`)
 	b.NewProcessor(func(u tgbotapi.Update) bool {
 		if u.Message == nil {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"sync"
+
 	"time"
 
 	tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
@@ -33,11 +33,29 @@ type Translations struct {
 
 var translations map[string]Translations
 
-// 新建线程池
-var downloaderPool = sync.Pool{
-	New: func() any {
-		return &StickerDownloader{}
-	},
+// 新建对象池
+type BlockingPool struct {
+	pool chan *StickerDownloader
+}
+
+func NewBlockingPool(size int) *BlockingPool {
+	p := &BlockingPool{
+		pool: make(chan *StickerDownloader, size),
+	}
+	for i := 0; i < size; i++ {
+		p.pool <- &StickerDownloader{ID: i}
+	}
+	return p
+}
+
+// 从池中拿一个对象，如果没有就阻塞等待
+func (p *BlockingPool) Get() *StickerDownloader {
+	return <-p.pool
+}
+
+// 归还对象到池中，如果池满了也会阻塞等待
+func (p *BlockingPool) Put(d *StickerDownloader) {
+	p.pool <- d
 }
 
 type DownloadCounter struct {
@@ -122,7 +140,8 @@ func (m MessageSender) ThisSender(fmt string, u tgbotapi.Update) error {
 		chatID := u.CallbackQuery.Message.Chat.ID
 		userID := u.CallbackQuery.Message.From.ID
 		u.CallbackQuery.Answer(false, translations[db.GetUserLanguage(userID)].DownloadingSingleSticker)
-		dl := downloaderPool.Get().(*StickerDownloader)
+		downloaderPool := NewBlockingPool(utils.BotConfig.MaxConcurrency)
+		dl := downloaderPool.Get()
 
 		if u.CallbackQuery.Message.ReplyToMessage.Sticker.IsVideo { //判断是否webm贴纸
 			msg := tgbotapi.NewDocument(chatID, tgbotapi.FileBytes{Bytes: func(u tgbotapi.Update) []byte {
@@ -257,7 +276,8 @@ func (m MessageSender) ZipSender(fmt string, u tgbotapi.Update) error {
 		u.CallbackQuery.Answer(false, translations[db.GetUserLanguage(userID)].DownloadingStickerSet)
 		processingMsg := tgbotapi.EditMessageTextConfig{Text: "贴纸包下载中 请稍等... \nDownloading... ", BaseEdit: tgbotapi.BaseEdit{ChatID: chatID, MessageID: u.CallbackQuery.Message.MessageID}}
 		utils.Bot.Send(processingMsg) //TODO 进度汇报
-		dl := downloaderPool.Get().(*StickerDownloader)
+		downloaderPool := NewBlockingPool(utils.BotConfig.MaxConcurrency)
+		dl := downloaderPool.Get()
 		data, stickerSetTitle, stickerNum, _ := dl.DownloadStickerSet(fmt, u)
 
 		//贴纸包判空

@@ -110,6 +110,7 @@ func RecordUserData(u tgbotapi.Update, fileSize int64, fileCount int) {
 		newUser.LastName = user.LastName
 		newUser.UserName = user.UserName
 		newUser.RecentDownloadTime = time.Now().Format(time.RFC3339)
+		newUser.UserLanguage = "zh"
 		err := DB.Where("user_id = ?", user.ID).Save(&newUser).Error
 		if err != nil {
 			DB.Logger.Error(context.Background(), err.Error())
@@ -157,6 +158,10 @@ func GetUserLanguage(UserID int64) string {
 	err := DB.Model(&UserData{}).Select("user_language").Where("user_id = ?", UserID).Scan(&lang).Error
 	if err != nil {
 		DB.Logger.Error(context.Background(), err.Error())
+		return "zh"
+	}
+	if lang == "" {
+		return "zh"
 	}
 	return lang
 }
