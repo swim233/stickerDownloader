@@ -61,6 +61,7 @@ func InitUserData(u tgbotapi.Update) error {
 			FirstName:  user.FirstName,
 			LastName:   user.LastName,
 			UserName:   user.UserName,
+            UserLanguage: "zh",
 			CreateTime: time.Now().Format(time.RFC3339),
 		}).Error
 		if err != nil {
