@@ -135,6 +135,7 @@ func (s StickerDownloader) DownloadStickerSet(fmt string, u tgbotapi.Update) ([]
 		logger.Error("%s", combinedError)
 	} else {
 		zipfile, err := compressFiles(name)
+    
 		cache.AddCache(stickerSet.Name+fmt, zipfile) //写入缓存
 		return zipfile, stickerSet.Title, stickerNum, err
 	}
