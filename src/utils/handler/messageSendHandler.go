@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/swim233/StickerDownloader/utils/cache"
 	"os"
 	"strconv"
 
@@ -273,29 +274,42 @@ func (m MessageSender) ZipSender(fmt string, u tgbotapi.Update) error {
 	go func(u tgbotapi.Update) error {
 		chatID := u.CallbackQuery.Message.Chat.ID
 		userID := u.CallbackQuery.Message.ReplyToMessage.From.ID
+
 		u.CallbackQuery.Answer(false, translations[db.GetUserLanguage(userID)].DownloadingStickerSet)
-		processingMsg := tgbotapi.EditMessageTextConfig{Text: "贴纸包下载中 请稍等... \nDownloading... ", BaseEdit: tgbotapi.BaseEdit{ChatID: chatID, MessageID: u.CallbackQuery.Message.MessageID}}
-		utils.Bot.Send(processingMsg) //TODO 进度汇报
-		downloaderPool := NewBlockingPool(utils.BotConfig.MaxConcurrency)
-		dl := downloaderPool.Get()
-		data, stickerSetTitle, stickerNum, _ := dl.DownloadStickerSet(fmt, u)
+		stickerSet, _ := utils.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: getStickerSet(u)})
+		fileIdBytes, found := cache.GetCache(stickerSet.Name + fmt + "fileId")
+		var requestFile tgbotapi.RequestFileData
 
-		//贴纸包判空
-		if len(data) == 0 {
-
-			msg := tgbotapi.NewMessage(chatID, translations[db.GetUserLanguage(userID)].StickerSetIsNull)
-			msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
-			utils.Bot.Send(msg)
-			u.CallbackQuery.Delete()
-			return nil
-
+		if !found {
+			processingMsg := tgbotapi.EditMessageTextConfig{Text: "贴纸包下载中 请稍等... \nDownloading... ", BaseEdit: tgbotapi.BaseEdit{ChatID: chatID, MessageID: u.CallbackQuery.Message.MessageID}}
+			utils.Bot.Send(processingMsg) //TODO 进度汇报
+			downloaderPool := NewBlockingPool(utils.BotConfig.MaxConcurrency)
+			dl := downloaderPool.Get()
+			data, stickerSetTitle, stickerNum, _ := dl.DownloadStickerSet(fmt, stickerSet, u)
+			if len(data) == 0 {
+				msg := tgbotapi.NewMessage(chatID, translations[db.GetUserLanguage(userID)].StickerSetIsNull)
+				msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
+				utils.Bot.Send(msg)
+				u.CallbackQuery.Delete()
+				return nil
+			}
+			//贴纸包判空
+			db.RecordUserData(u, int64(len(data)), stickerNum)                               //记录数据库
+			db.RecordStickerData(getStickerSet(u), stickerSetTitle, u.CallbackQuery.From.ID) //记录贴纸
+			requestFile = tgbotapi.FileBytes{Name: stickerSetTitle + ".zip", Bytes: data}
+		} else {
+			requestFile = tgbotapi.FileID(fileIdBytes)
 		}
-		db.RecordUserData(u, int64(len(data)), stickerNum)                               //记录数据库
-		db.RecordStickerData(getStickerSet(u), stickerSetTitle, u.CallbackQuery.From.ID) //记录贴纸
-		msg := tgbotapi.NewDocument(chatID, tgbotapi.FileBytes{Name: stickerSetTitle + ".zip", Bytes: data})
+
+		msg := tgbotapi.NewDocument(chatID, requestFile)
 		msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
 		downloadCounter.Pack++
-		utils.Bot.Send(msg) //发送消息
+		send, err := utils.Bot.Send(msg)
+		if err == nil && !found {
+			// TODO: 二进制缓存和FileId缓存应该用不一样的ttl
+			cache.AddCache(stickerSet.Name+fmt+"fileId", []byte(send.Document.FileID))
+		} //发送消息
+
 		u.CallbackQuery.Delete()
 		return nil
 	}(u)
