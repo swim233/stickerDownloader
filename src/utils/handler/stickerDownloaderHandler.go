@@ -55,8 +55,7 @@ func (s StickerDownloader) DownloadSetFile(sticker tgbotapi.Sticker) ([]byte, er
 }
 
 // 下载贴纸集
-func (s StickerDownloader) DownloadStickerSet(fmt string, u tgbotapi.Update) ([]byte, string, int, error) {
-	stickerSet, err := utils.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: getStickerSet(u)})
+func (s StickerDownloader) DownloadStickerSet(fmt string, stickerSet tgbotapi.StickerSet, u tgbotapi.Update) ([]byte, string, int, error) {
 	setName := stickerSet.Name
 	stickerNum := len(stickerSet.Stickers)
 	if utils.BotConfig.EnableCache {
@@ -72,11 +71,8 @@ func (s StickerDownloader) DownloadStickerSet(fmt string, u tgbotapi.Update) ([]
 	var name string
 	var mu sync.Mutex
 	var downloadErrorArray []error
-	if err != nil {
-		return nil, "", 0, err
-	}
 	logger.Info("%s", stickerSet.Name)
-	name, err = os.MkdirTemp(".", "sticker")
+	name, err := os.MkdirTemp(".", "sticker")
 	addErr := func(err error) { //错误处理
 		mu.Lock()
 		downloadErrorArray = append(downloadErrorArray, err)
