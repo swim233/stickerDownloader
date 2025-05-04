@@ -164,38 +164,25 @@ func getEnv() {
 
 	BotConfig.HTTPToken = os.Getenv("HTTPToken") //读取token
 
-	bot, err := tgbotapi.NewBotAPI(BotConfig.Token) //实例化BotAPI
+	// 后实例化的会被赋值到全局
+	httpBot, err := tgbotapi.NewBotAPI(BotConfig.HTTPToken) //实例化BotAPI
 	if err != nil {
-		logger.Error("%s", err)
-		logger.Error("找不到token，请检查配置文件")
-		err = nil
+		logger.Error("实例化BotApi时: %s", err)
 		os.Exit(1)
 	}
-	Bot = bot
-	if err != nil {
-		logger.Error("%s", BotConfig.Token)
-		logger.Error("%s", err)
-		err = nil
-	}
-	Bot.Debug = BotConfig.DebugFlag
+	HTTPBot = httpBot
+	HTTPBot.Debug = BotConfig.DebugFlag
 	if BotConfig.HTTPToken == BotConfig.Token {
-		HTTPBot = Bot
+		Bot = HTTPBot
 	} else {
-		httpBot, err := tgbotapi.NewBotAPI(BotConfig.HTTPToken) //实例化BotAPI
+		bot, err := tgbotapi.NewBotAPI(BotConfig.Token) //实例化BotAPI
 		if err != nil {
-			logger.Error("%s", err)
-			logger.Error("找不到http token，请检查配置文件")
+			logger.Error("实例化BotApi时: %s", err)
 			err = nil
 			os.Exit(1)
-
 		}
-		HTTPBot = httpBot
-		if err != nil {
-			logger.Error("%s", BotConfig.HTTPToken)
-			logger.Error("%s", err)
-			err = nil
-		}
-		HTTPBot.Debug = BotConfig.DebugFlag
+		Bot = bot
+		Bot.Debug = BotConfig.DebugFlag
 	}
 	loglevel := logger.ParseLogLevel(os.Getenv("LogLevel")) //读取bot log level
 	logger.SetLogLevel(loglevel)
