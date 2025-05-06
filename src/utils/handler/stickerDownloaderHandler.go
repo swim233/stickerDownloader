@@ -16,7 +16,6 @@ import (
 
 	tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
 	"github.com/swim233/StickerDownloader/utils"
-	"github.com/swim233/StickerDownloader/utils/cache"
 	"github.com/swim233/StickerDownloader/utils/logger"
 )
 
@@ -56,17 +55,7 @@ func (s StickerDownloader) DownloadSetFile(sticker tgbotapi.Sticker) ([]byte, er
 
 // 下载贴纸集
 func (s StickerDownloader) DownloadStickerSet(fmt string, stickerSet tgbotapi.StickerSet, u tgbotapi.Update) ([]byte, string, int, error) {
-	setName := stickerSet.Name
 	stickerNum := len(stickerSet.Stickers)
-	if utils.BotConfig.EnableCache {
-		cacheData, found := cache.GetCache(setName + fmt) //查找缓存
-		if found {
-			downloadCounter.Single += stickerNum
-			downloadCounter.Cache++
-			return cacheData, stickerSet.Title, 0, nil
-		}
-	}
-
 	var wg sync.WaitGroup
 	var name string
 	var mu sync.Mutex
@@ -131,8 +120,7 @@ func (s StickerDownloader) DownloadStickerSet(fmt string, stickerSet tgbotapi.St
 		logger.Error("%s", combinedError)
 	} else {
 		zipfile, err := compressFiles(name)
-    
-		cache.AddCache(stickerSet.Name+fmt, zipfile) //写入缓存
+
 		return zipfile, stickerSet.Title, stickerNum, err
 	}
 	return nil, "", 0, err
@@ -147,16 +135,6 @@ func (s StickerDownloader) HTTPDownloadStickerSet(fmt string, setName string) ([
 	}
 	stickerSet, err := utils.HTTPBot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: setName})
 	stickerNum := len(stickerSet.Stickers)
-
-	if utils.BotConfig.EnableCache {
-		cacheData, found := cache.GetCache(setName + fmt) //查找缓存
-		if found {
-			downloadCounter.HTTPPack++
-			downloadCounter.HTTPSingle += stickerNum
-			downloadCounter.Cache++
-			return cacheData, nil
-		}
-	}
 	var wg sync.WaitGroup
 	var name string
 	var mu sync.Mutex
@@ -230,7 +208,6 @@ func (s StickerDownloader) HTTPDownloadStickerSet(fmt string, setName string) ([
 	} else {
 		zipfile, err := compressFiles(name)
 		downloadCounter.HTTPPack++
-		cache.AddCache(setName+fmt, zipfile) //写入缓存
 		return zipfile, err
 	}
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/glebarez/sqlite"
 	tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
+	"github.com/swim233/StickerDownloader/utils/hashCalculator"
 	"gorm.io/gorm"
 )
 
@@ -30,6 +31,11 @@ type StickerData struct {
 	RecentDownloadTime string `gorm:"not null,default:0"`
 	LastDownloadUser   int64  `gorm:"default:0"`
 	DownloadCount      int
+	WebpFileID         string
+	PNGFileID          string
+	JPEGFileID         string
+	StickerNum         int
+	SetHash            string
 }
 
 var DB *gorm.DB
@@ -57,12 +63,12 @@ func InitUserData(u tgbotapi.Update) error {
 	err := DB.Where("user_id = ?", user.ID).First(&newUser).Error
 	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
 		err := DB.Create(UserData{
-			UserID:     user.ID,
-			FirstName:  user.FirstName,
-			LastName:   user.LastName,
-			UserName:   user.UserName,
-            UserLanguage: "zh",
-			CreateTime: time.Now().Format(time.RFC3339),
+			UserID:       user.ID,
+			FirstName:    user.FirstName,
+			LastName:     user.LastName,
+			UserName:     user.UserName,
+			UserLanguage: "zh",
+			CreateTime:   time.Now().Format(time.RFC3339),
 		}).Error
 		if err != nil {
 			DB.Logger.Error(context.Background(), err.Error())
@@ -121,17 +127,22 @@ func RecordUserData(u tgbotapi.Update, fileSize int64, fileCount int) {
 }
 
 // 记录贴纸数据
-func RecordStickerData(name string, title string, UserID int64) {
+func RecordStickerData(setName string, title string, UserID int64, WebPFileID string, PNGFileID string, JPEGFileID string, StickerNum int, SetHash string) {
 	newStickerSetData := StickerData{}
 
-	err := DB.Where("sticker_name = ?", name).First(&newStickerSetData).Error
+	err := DB.Where("sticker_name = ?", setName).First(&newStickerSetData).Error
 	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
 		err := DB.Create(StickerData{
-			StickerName:        name,
+			StickerName:        setName,
 			StickerTitle:       title,
 			DownloadCount:      1,
 			LastDownloadUser:   UserID,
 			RecentDownloadTime: time.Now().Format(time.RFC3339),
+			WebpFileID:         WebPFileID,
+			PNGFileID:          PNGFileID,
+			JPEGFileID:         JPEGFileID,
+			StickerNum:         StickerNum,
+			SetHash:            SetHash,
 		}).Error
 		if err != nil {
 			DB.Logger.Error(context.Background(), err.Error())
@@ -145,12 +156,30 @@ func RecordStickerData(name string, title string, UserID int64) {
 		newStickerSetData.StickerTitle = title
 		newStickerSetData.RecentDownloadTime = time.Now().Format(time.RFC3339)
 		newStickerSetData.LastDownloadUser = UserID
-		err := DB.Where("sticker_name = ?", name).Save(&newStickerSetData).Error
+		if WebPFileID != "" {
+			newStickerSetData.WebpFileID = WebPFileID
+		}
+		if PNGFileID != "" {
+			newStickerSetData.PNGFileID = PNGFileID
+		}
+		if JPEGFileID != "" {
+			newStickerSetData.JPEGFileID = JPEGFileID
+		}
+		newStickerSetData.SetHash = hashCalculator.CalculateHashViaSetName(setName)
+		newStickerSetData.StickerNum += StickerNum
+		err := DB.Where("sticker_name = ?", setName).Save(&newStickerSetData).Error
 		if err != nil {
 			DB.Logger.Error(context.Background(), err.Error())
 		}
 	}
 
+}
+
+// 获取贴纸包数据
+func GetStickerData(SetName string) (StickerData, error) {
+	var data StickerData
+	err := DB.Where("sticker_name = ?", SetName).First(&data).Error
+	return data, err
 }
 
 // 获取用户语言
