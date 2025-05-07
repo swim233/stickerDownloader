@@ -144,7 +144,7 @@ func (m MessageSender) ThisSender(fmt string, u tgbotapi.Update) error {
 		userID := u.CallbackQuery.Message.From.ID
 
 		u.CallbackQuery.Answer(false, translations[db.GetUserLanguage(userID)].DownloadingSingleSticker)
-        
+
 		downloaderPool := NewBlockingPool(utils.BotConfig.MaxConcurrency)
 		dl := downloaderPool.Get()
 
@@ -276,6 +276,7 @@ func (m MessageSender) ChangeUserLanguage(u tgbotapi.Update, lang string) error 
 func (m MessageSender) ZipSender(fmt string, u tgbotapi.Update) error {
 	go func(u tgbotapi.Update) error {
 		var requestFile tgbotapi.RequestFileData
+		var fileSize int64
 		chatID := u.CallbackQuery.Message.Chat.ID
 		userID := u.CallbackQuery.Message.ReplyToMessage.From.ID
 
@@ -286,10 +287,13 @@ func (m MessageSender) ZipSender(fmt string, u tgbotapi.Update) error {
 			logger.Error("%s", err)
 		}
 
-		fileID, err := cache.GetCacheFileID(stickerSet.Name, fmt)
-		if err == nil && fileID != "" { //判定缓存
+		fileID, fileSize, stickerNum, err := cache.GetCacheFileID(stickerSet.Name, fmt)
+		if err == nil && fileID != "" && !(fileSize == 0 || stickerNum == 0) { //判定缓存 如果数据库中贴纸数量和大小存在问题 强制刷新
 			requestFile = tgbotapi.FileID(fileID)
 			downloadCounter.CacheHit++
+			db.RecordUserData(u, fileSize, stickerNum)
+			logger.Info("缓存命中")
+			logger.Error("size:%d,num:%d", fileSize, stickerNum) //FIXME
 		} else {
 
 			processingMsg := tgbotapi.EditMessageTextConfig{Text: "贴纸包下载中 请稍等... \nDownloading... ", BaseEdit: tgbotapi.BaseEdit{ChatID: chatID, MessageID: u.CallbackQuery.Message.MessageID}}
@@ -297,10 +301,11 @@ func (m MessageSender) ZipSender(fmt string, u tgbotapi.Update) error {
 			downloaderPool := NewBlockingPool(utils.BotConfig.MaxConcurrency) //获取下载线程
 			dl := downloaderPool.Get()
 			data, stickerSetTitle, stickerNum, err := dl.DownloadStickerSet(fmt, stickerSet, u) //下载贴纸数据
+			fileSize = int64(len(data))
 			if err != nil {
 				logger.Error("%s", err)
 			}
-			if len(data) == 0 {
+			if fileSize == 0 {
 				msg := tgbotapi.NewMessage(chatID, translations[db.GetUserLanguage(userID)].StickerSetIsNull) //贴纸包为空
 				msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID                       //回复消息
 				utils.Bot.Send(msg)
@@ -319,15 +324,15 @@ func (m MessageSender) ZipSender(fmt string, u tgbotapi.Update) error {
 			switch fmt { //为数据库添加数据
 			case "webp":
 				{
-					db.RecordStickerData(stickerSet.Name, stickerSet.Title, userID, message.Document.FileID, "", "", len(stickerSet.Stickers), hashCalculator.CalculateHashViaSetName(stickerSet.Name))
+					db.RecordStickerData(stickerSet.Name, stickerSet.Title, userID, message.Document.FileID, fileSize, "", 0, "", 0, len(stickerSet.Stickers), hashCalculator.CalculateHashViaSetName(stickerSet.Name))
 				}
 			case "png":
 				{
-					db.RecordStickerData(stickerSet.Name, stickerSet.Title, userID, "", message.Document.FileID, "", len(stickerSet.Stickers), hashCalculator.CalculateHashViaSetName(stickerSet.Name))
+					db.RecordStickerData(stickerSet.Name, stickerSet.Title, userID, "", 0, message.Document.FileID, fileSize, "", 0, len(stickerSet.Stickers), hashCalculator.CalculateHashViaSetName(stickerSet.Name))
 				}
 			case "jpeg":
 				{
-					db.RecordStickerData(stickerSet.Name, stickerSet.Title, userID, "", "", message.Document.FileID, len(stickerSet.Stickers), hashCalculator.CalculateHashViaSetName(stickerSet.Name))
+					db.RecordStickerData(stickerSet.Name, stickerSet.Title, userID, "", 0, "", 0, message.Document.FileID, fileSize, len(stickerSet.Stickers), hashCalculator.CalculateHashViaSetName(stickerSet.Name))
 				}
 			default:
 				//TODO 默认处理

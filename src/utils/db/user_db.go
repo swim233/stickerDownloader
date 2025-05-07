@@ -32,8 +32,11 @@ type StickerData struct {
 	LastDownloadUser   int64  `gorm:"default:0"`
 	DownloadCount      int
 	WebpFileID         string
+	WebpFileSize       int64
 	PNGFileID          string
+	PNGFileSize        int64
 	JPEGFileID         string
+	JPEGFileSize       int64
 	StickerNum         int
 	SetHash            string
 }
@@ -127,7 +130,7 @@ func RecordUserData(u tgbotapi.Update, fileSize int64, fileCount int) {
 }
 
 // 记录贴纸数据
-func RecordStickerData(setName string, title string, UserID int64, WebPFileID string, PNGFileID string, JPEGFileID string, StickerNum int, SetHash string) {
+func RecordStickerData(setName string, title string, UserID int64, WebPFileID string, WebpFileSize int64, PNGFileID string, PNGFileSize int64, JPEGFileID string, JPEGFileSize int64, StickerNum int, SetHash string) {
 	newStickerSetData := StickerData{}
 
 	err := DB.Where("sticker_name = ?", setName).First(&newStickerSetData).Error
@@ -139,8 +142,11 @@ func RecordStickerData(setName string, title string, UserID int64, WebPFileID st
 			LastDownloadUser:   UserID,
 			RecentDownloadTime: time.Now().Format(time.RFC3339),
 			WebpFileID:         WebPFileID,
+			WebpFileSize:       WebpFileSize,
 			PNGFileID:          PNGFileID,
+			PNGFileSize:        PNGFileSize,
 			JPEGFileID:         JPEGFileID,
+			JPEGFileSize:       JPEGFileSize,
 			StickerNum:         StickerNum,
 			SetHash:            SetHash,
 		}).Error
@@ -158,12 +164,15 @@ func RecordStickerData(setName string, title string, UserID int64, WebPFileID st
 		newStickerSetData.LastDownloadUser = UserID
 		if WebPFileID != "" {
 			newStickerSetData.WebpFileID = WebPFileID
+			newStickerSetData.WebpFileSize = WebpFileSize
 		}
 		if PNGFileID != "" {
 			newStickerSetData.PNGFileID = PNGFileID
+			newStickerSetData.PNGFileSize = PNGFileSize
 		}
 		if JPEGFileID != "" {
 			newStickerSetData.JPEGFileID = JPEGFileID
+			newStickerSetData.JPEGFileSize = JPEGFileSize
 		}
 		newStickerSetData.SetHash = hashCalculator.CalculateHashViaSetName(setName)
 		newStickerSetData.StickerNum += StickerNum
