@@ -130,9 +130,13 @@ func RecordUserData(u tgbotapi.Update, fileSize int64, fileCount int) {
 }
 
 // 记录贴纸数据
-func RecordStickerData(setName string, title string, UserID int64, WebPFileID string, WebpFileSize int64, PNGFileID string, PNGFileSize int64, JPEGFileID string, JPEGFileSize int64, StickerNum int, SetHash string) {
+func RecordStickerData(set tgbotapi.StickerSet, UserID int64, WebPFileID string, WebpFileSize int64, PNGFileID string, PNGFileSize int64, JPEGFileID string, JPEGFileSize int64) {
 	newStickerSetData := StickerData{}
 
+	setName := set.Name
+	title := set.Title
+	StickerNum := len(set.Stickers)
+	SetHash := hashCalculator.CalculateStickerSet(set)
 	err := DB.Where("sticker_name = ?", setName).First(&newStickerSetData).Error
 	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
 		err := DB.Create(StickerData{

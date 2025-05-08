@@ -287,7 +287,7 @@ func (m MessageSender) ZipSender(fmt string, u tgbotapi.Update) error {
 			logger.Error("%s", err)
 		}
 
-		fileID, fileSize, stickerNum, err := cache.GetCacheFileID(stickerSet.Name, fmt)
+		fileID, fileSize, stickerNum, err := cache.GetCacheFileID(stickerSet, fmt)
 		if err == nil && fileID != "" && !(fileSize == 0 || stickerNum == 0) { //判定缓存 如果数据库中贴纸数量和大小存在问题 强制刷新
 			requestFile = tgbotapi.FileID(fileID)
 			downloadCounter.CacheHit++
@@ -324,15 +324,15 @@ func (m MessageSender) ZipSender(fmt string, u tgbotapi.Update) error {
 			switch fmt { //为数据库添加数据
 			case "webp":
 				{
-					db.RecordStickerData(stickerSet.Name, stickerSet.Title, userID, message.Document.FileID, fileSize, "", 0, "", 0, len(stickerSet.Stickers), hashCalculator.CalculateHashViaSetName(stickerSet.Name))
+					db.RecordStickerData(stickerSet, userID, message.Document.FileID, fileSize, "", 0, "", 0)
 				}
 			case "png":
 				{
-					db.RecordStickerData(stickerSet.Name, stickerSet.Title, userID, "", 0, message.Document.FileID, fileSize, "", 0, len(stickerSet.Stickers), hashCalculator.CalculateHashViaSetName(stickerSet.Name))
+					db.RecordStickerData(stickerSet, userID, "", 0, message.Document.FileID, fileSize, "", 0)
 				}
 			case "jpeg":
 				{
-					db.RecordStickerData(stickerSet.Name, stickerSet.Title, userID, "", 0, "", 0, message.Document.FileID, fileSize, len(stickerSet.Stickers), hashCalculator.CalculateHashViaSetName(stickerSet.Name))
+					db.RecordStickerData(stickerSet, userID, "", 0, "", 0, message.Document.FileID, fileSize)
 				}
 			default:
 				//TODO 默认处理
