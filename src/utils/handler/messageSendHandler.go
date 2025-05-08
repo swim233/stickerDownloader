@@ -137,7 +137,7 @@ func (m MessageSender) ButtonMessageSender(u tgbotapi.Update, sticker tgbotapi.S
 }
 
 // 单个贴纸下载
-func (m MessageSender) ThisSender(fmt string, u tgbotapi.Update) error {
+func (m MessageSender) ThisSender(format utils.Format, u tgbotapi.Update) error {
 	go func(u tgbotapi.Update) error {
 		chatID := u.CallbackQuery.Message.Chat.ID
 		userID := u.CallbackQuery.Message.From.ID
@@ -167,29 +167,29 @@ func (m MessageSender) ThisSender(fmt string, u tgbotapi.Update) error {
 			msg := tgbotapi.NewDocument(chatID, tgbotapi.FileBytes{Bytes: func(u tgbotapi.Update) []byte {
 				webp, err := dl.DownloadFile(u)
 				db.RecordUserData(u, int64(len(webp)), 1)
-				if fmt == "webp" {
+				switch {
+				case format == utils.WebpFormat:
 					return webp
-				} else if fmt == "jpeg" {
+				case format == utils.JpegFormat:
 					if err != nil {
 						logger.Error("%s", err.Error())
 					}
-					fc := formatConverter{} //转换格式
+					fc := formatConverter{}
 					jpeg, err := fc.convertWebPToJPEG(webp, utils.BotConfig.WebPToJPEGQuality)
 					if err != nil {
 						logger.Error("%s", err.Error())
 					}
 					return jpeg
-				} else {
+				default:
 					if err != nil {
 						logger.Error("%s", err.Error())
 					}
-					fc := formatConverter{} //转换格式
+					fc := formatConverter{}
 					png, err := fc.convertWebPToPNG(webp)
 					if err != nil {
 						logger.Error("%s", err.Error())
 					}
 					return png
-
 				}
 			}(u), Name: func(u tgbotapi.Update) string { //贴纸包名字判空
 				if u.CallbackQuery.Message.ReplyToMessage.Sticker.SetName == "" {
@@ -197,7 +197,7 @@ func (m MessageSender) ThisSender(fmt string, u tgbotapi.Update) error {
 				} else {
 					return u.CallbackQuery.Message.ReplyToMessage.Sticker.SetName
 				}
-			}(u) + "." + fmt})
+			}(u) + "." + format.String()})
 			downloaderPool.Put(dl)
 			msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
 			downloadCounter.Single++
@@ -272,7 +272,7 @@ func (m MessageSender) ChangeUserLanguage(u tgbotapi.Update, lang string) error 
 }
 
 // 贴纸集下载
-func (m MessageSender) ZipSender(fmt string, u tgbotapi.Update) error {
+func (m MessageSender) ZipSender(fmt utils.Format, u tgbotapi.Update) error {
 	go func(u tgbotapi.Update) error {
 		var requestFile tgbotapi.RequestFileData
 		var fileSize int64
@@ -321,15 +321,15 @@ func (m MessageSender) ZipSender(fmt string, u tgbotapi.Update) error {
 		message, err := utils.Bot.Send(msg)
 		if err == nil {
 			switch fmt { //为数据库添加数据
-			case "webp":
+			case utils.WebpFormat:
 				{
 					db.RecordStickerData(stickerSet, userID, message.Document.FileID, fileSize, "", 0, "", 0)
 				}
-			case "png":
+			case utils.PngFormat:
 				{
 					db.RecordStickerData(stickerSet, userID, "", 0, message.Document.FileID, fileSize, "", 0)
 				}
-			case "jpeg":
+			case utils.JpegFormat:
 				{
 					db.RecordStickerData(stickerSet, userID, "", 0, "", 0, message.Document.FileID, fileSize)
 				}

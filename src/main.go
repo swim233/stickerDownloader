@@ -65,27 +65,27 @@ func main() {
 	b.NewCallBackProcessor("zip", messageSender.ZipFormatChose)
 	b.NewCallBackProcessor("cancel", messageSender.CancelDownload)
 	b.NewCallBackProcessor("webp", func(u tgbotapi.Update) error {
-		return messageSender.ThisSender("webp", u)
+		return messageSender.ThisSender(utils.WebpFormat, u)
 
 	})
 	b.NewCallBackProcessor("png", func(u tgbotapi.Update) error {
-		return messageSender.ThisSender("png", u)
+		return messageSender.ThisSender(utils.PngFormat, u)
 
 	})
 	b.NewCallBackProcessor("jpeg", func(u tgbotapi.Update) error {
-		return messageSender.ThisSender("jpeg", u)
+		return messageSender.ThisSender(utils.JpegFormat, u)
 
 	})
 	b.NewCallBackProcessor("zip_webp", func(u tgbotapi.Update) error {
-		return messageSender.ZipSender("webp", u)
+		return messageSender.ZipSender(utils.WebpFormat, u)
 
 	})
 	b.NewCallBackProcessor("zip_png", func(u tgbotapi.Update) error {
-		return messageSender.ZipSender("png", u)
+		return messageSender.ZipSender(utils.PngFormat, u)
 
 	})
 	b.NewCallBackProcessor("zip_jpeg", func(u tgbotapi.Update) error {
-		return messageSender.ZipSender("jpeg", u)
+		return messageSender.ZipSender(utils.JpegFormat, u)
 	})
 	b.NewCallBackProcessor("lang_zh", func(u tgbotapi.Update) error {
 		return messageSender.ChangeUserLanguage(u, "zh")

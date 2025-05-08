@@ -54,7 +54,7 @@ func (s StickerDownloader) DownloadSetFile(sticker tgbotapi.Sticker) ([]byte, er
 }
 
 // 下载贴纸集
-func (s StickerDownloader) DownloadStickerSet(fmt string, stickerSet tgbotapi.StickerSet, u tgbotapi.Update) ([]byte, string, int, error) {
+func (s StickerDownloader) DownloadStickerSet(format utils.Format, stickerSet tgbotapi.StickerSet, u tgbotapi.Update) ([]byte, string, int, error) {
 	stickerNum := len(stickerSet.Stickers)
 	var wg sync.WaitGroup
 	var name string
@@ -82,19 +82,24 @@ func (s StickerDownloader) DownloadStickerSet(fmt string, stickerSet tgbotapi.St
 			}
 			var filePath string
 			if sticker.IsVideo {
-
 				filePath = path.Join(name, strconv.Itoa(index)+".webm")
 			} else {
-				if fmt == "png" {
+				switch {
+				case format == utils.PngFormat:
 					fc := formatConverter{}
 					data, _ = fc.convertWebPToPNG(data)
 					filePath = path.Join(name, strconv.Itoa(index)+".png")
-				} else if fmt == "jpeg" {
+					break
+				case format == utils.JpegFormat:
 					fc := formatConverter{}
 					data, _ = fc.convertWebPToJPEG(data, utils.BotConfig.WebPToJPEGQuality)
 					filePath = path.Join(name, strconv.Itoa(index)+".jpeg")
-				} else {
+					break
+				default:
+					logger.Warn("未实现的格式: %v, 作为webp处理", format)
+				case format == utils.WebpFormat:
 					filePath = path.Join(name, strconv.Itoa(index)+".webp")
+					break
 				}
 			}
 			file, err := os.Create(filePath)
