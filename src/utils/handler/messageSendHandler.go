@@ -149,6 +149,8 @@ func (m MessageSender) ThisSender(format utils.Format, u tgbotapi.Update) error 
 			msg := tgbotapi.NewDocument(chatID, tgbotapi.FileID(u.CallbackQuery.Message.ReplyToMessage.Sticker.FileID))
 			msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
 			downloadCounter.Single++
+			// 这里的FileSize可能为0 如果需要精确审计可能不能使用早返回
+			db.RecordUserData(u, int64(u.CallbackQuery.Message.ReplyToMessage.Sticker.FileSize), 1)
 			utils.Bot.Send(msg)
 			u.CallbackQuery.Delete()
 			return nil
@@ -177,11 +179,8 @@ func (m MessageSender) ThisSender(format utils.Format, u tgbotapi.Update) error 
 			msg := tgbotapi.NewDocument(chatID, tgbotapi.FileBytes{Bytes: func(u tgbotapi.Update) []byte {
 				webp, err := dl.DownloadFile(u)
 				db.RecordUserData(u, int64(len(webp)), 1)
-				switch {
-				// 在上面早返回已经被处理了 但是留着以防万一
-				case format == utils.WebpFormat:
-					return webp
-				case format == utils.JpegFormat:
+				switch format {
+				case utils.JpegFormat:
 					if err != nil {
 						logger.Error("%s", err.Error())
 					}
@@ -191,7 +190,7 @@ func (m MessageSender) ThisSender(format utils.Format, u tgbotapi.Update) error 
 						logger.Error("%s", err.Error())
 					}
 					return jpeg
-				default:
+				case utils.PngFormat:
 					if err != nil {
 						logger.Error("%s", err.Error())
 					}
@@ -201,6 +200,12 @@ func (m MessageSender) ThisSender(format utils.Format, u tgbotapi.Update) error 
 						logger.Error("%s", err.Error())
 					}
 					return png
+				// 在上面早返回已经被处理了 但是留着以防万一
+				case utils.WebpFormat:
+					return webp
+				default:
+					logger.Warn("未实现的格式: %v, 作为webp处理", format)
+					return webp
 				}
 			}(u), Name: func(u tgbotapi.Update) string { //贴纸包名字判空
 				if u.CallbackQuery.Message.ReplyToMessage.Sticker.SetName == "" {
