@@ -144,6 +144,16 @@ func (m MessageSender) ThisSender(format utils.Format, u tgbotapi.Update) error 
 
 		u.CallbackQuery.Answer(false, translations[db.GetUserLanguage(userID)].DownloadingSingleSticker)
 
+		// 早返回
+		if format == utils.WebpFormat {
+			msg := tgbotapi.NewDocument(chatID, tgbotapi.FileID(u.CallbackQuery.Message.ReplyToMessage.Sticker.FileID))
+			msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
+			downloadCounter.Single++
+			utils.Bot.Send(msg)
+			u.CallbackQuery.Delete()
+			return nil
+		}
+
 		downloaderPool := NewBlockingPool(utils.BotConfig.MaxConcurrency)
 		dl := downloaderPool.Get()
 
@@ -168,6 +178,7 @@ func (m MessageSender) ThisSender(format utils.Format, u tgbotapi.Update) error 
 				webp, err := dl.DownloadFile(u)
 				db.RecordUserData(u, int64(len(webp)), 1)
 				switch {
+				// 在上面早返回已经被处理了 但是留着以防万一
 				case format == utils.WebpFormat:
 					return webp
 				case format == utils.JpegFormat:
