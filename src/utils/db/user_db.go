@@ -178,7 +178,7 @@ func RecordStickerData(set tgbotapi.StickerSet, UserID int64, WebPFileID string,
 			newStickerSetData.JPEGFileID = JPEGFileID
 			newStickerSetData.JPEGFileSize = JPEGFileSize
 		}
-		newStickerSetData.SetHash = hashCalculator.CalculateHashViaSetName(setName)
+		newStickerSetData.SetHash = hashCalculator.CalculateStickerSet(set)
 		newStickerSetData.StickerNum += StickerNum
 		err := DB.Where("sticker_name = ?", setName).Save(&newStickerSetData).Error
 		if err != nil {

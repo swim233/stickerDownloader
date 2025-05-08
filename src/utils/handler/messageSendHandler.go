@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"github.com/swim233/StickerDownloader/utils/cache"
-	"github.com/swim233/StickerDownloader/utils/hashCalculator"
 
 	"time"
 
