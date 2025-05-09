@@ -305,6 +305,7 @@ func (m MessageSender) ZipSender(fmt utils.Format, u tgbotapi.Update) error {
 		fileID, fileSize, stickerNum, err := cache.GetCacheFileID(stickerSet, fmt)
 		if err == nil && fileID != "" && !(fileSize == 0 || stickerNum == 0) { //判定缓存 如果数据库中贴纸数量和大小存在问题 强制刷新
 			requestFile = tgbotapi.FileID(fileID)
+			downloadCounter.Pack++
 			downloadCounter.CacheHit++
 			db.RecordUserData(u, fileSize, stickerNum)
 			logger.Info("缓存命中")
@@ -382,8 +383,8 @@ func (m MessageSender) CancelDownload(u tgbotapi.Update) error {
 // 发送欢迎和帮助消息
 func (m MessageSender) HelpMessage(u tgbotapi.Update) error {
 	chatID := u.Message.Chat.ID
-	msg := tgbotapi.NewMessage(chatID, "请将贴纸发送给我 我可以下载单个贴纸和贴纸包 并转换成不同的格式 你可以使用 /lang 来切换语言\n\n"+
-		"Please send me the stickers. I can download individual stickers and sticker packs, and convert them into different formats. You can use /lang to switch the language.")
+	msg := tgbotapi.NewMessage(chatID, "您好！请将您喜欢的贴纸发送给我 我可以帮您下载单个贴纸或整个贴纸包，并支持转换为多种格式！如需切换语言，请发送指令：/lang \n\n"+
+		"Hi there!  Just send me the stickers you want I can download individual stickers or entire sticker packs, and convert them into various formats for you!To switch the language, just type /lang ")
 	utils.Bot.Send(msg)
 	return nil
 }
