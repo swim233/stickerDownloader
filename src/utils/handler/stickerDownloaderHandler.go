@@ -97,6 +97,7 @@ func (s StickerDownloader) DownloadStickerSet(format utils.Format, stickerSet tg
 					break
 				default:
 					logger.Warn("未实现的格式: %v, 作为webp处理", format)
+					fallthrough
 				case format == utils.WebpFormat:
 					filePath = path.Join(name, strconv.Itoa(index)+".webp")
 					break
