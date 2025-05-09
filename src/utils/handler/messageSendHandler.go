@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"github.com/swim233/StickerDownloader/utils/cache"
-	"github.com/swim233/StickerDownloader/utils/hashCalculator"
 
 	"time"
 
@@ -138,12 +137,24 @@ func (m MessageSender) ButtonMessageSender(u tgbotapi.Update, sticker tgbotapi.S
 }
 
 // 单个贴纸下载
-func (m MessageSender) ThisSender(fmt string, u tgbotapi.Update) error {
+func (m MessageSender) ThisSender(format utils.Format, u tgbotapi.Update) error {
 	go func(u tgbotapi.Update) error {
 		chatID := u.CallbackQuery.Message.Chat.ID
 		userID := u.CallbackQuery.Message.From.ID
 
 		u.CallbackQuery.Answer(false, translations[db.GetUserLanguage(userID)].DownloadingSingleSticker)
+
+		// 早返回
+		if format == utils.WebpFormat {
+			msg := tgbotapi.NewDocument(chatID, tgbotapi.FileID(u.CallbackQuery.Message.ReplyToMessage.Sticker.FileID))
+			msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
+			downloadCounter.Single++
+			// 这里的FileSize可能为0 如果需要精确审计可能不能使用早返回
+			db.RecordUserData(u, int64(u.CallbackQuery.Message.ReplyToMessage.Sticker.FileSize), 1)
+			utils.Bot.Send(msg)
+			u.CallbackQuery.Delete()
+			return nil
+		}
 
 		downloaderPool := NewBlockingPool(utils.BotConfig.MaxConcurrency)
 		dl := downloaderPool.Get()
@@ -168,29 +179,33 @@ func (m MessageSender) ThisSender(fmt string, u tgbotapi.Update) error {
 			msg := tgbotapi.NewDocument(chatID, tgbotapi.FileBytes{Bytes: func(u tgbotapi.Update) []byte {
 				webp, err := dl.DownloadFile(u)
 				db.RecordUserData(u, int64(len(webp)), 1)
-				if fmt == "webp" {
-					return webp
-				} else if fmt == "jpeg" {
+				switch format {
+				case utils.JpegFormat:
 					if err != nil {
 						logger.Error("%s", err.Error())
 					}
-					fc := formatConverter{} //转换格式
+					fc := formatConverter{}
 					jpeg, err := fc.convertWebPToJPEG(webp, utils.BotConfig.WebPToJPEGQuality)
 					if err != nil {
 						logger.Error("%s", err.Error())
 					}
 					return jpeg
-				} else {
+				case utils.PngFormat:
 					if err != nil {
 						logger.Error("%s", err.Error())
 					}
-					fc := formatConverter{} //转换格式
+					fc := formatConverter{}
 					png, err := fc.convertWebPToPNG(webp)
 					if err != nil {
 						logger.Error("%s", err.Error())
 					}
 					return png
-
+				// 在上面早返回已经被处理了 但是留着以防万一
+				case utils.WebpFormat:
+					return webp
+				default:
+					logger.Warn("未实现的格式: %v, 作为webp处理", format)
+					return webp
 				}
 			}(u), Name: func(u tgbotapi.Update) string { //贴纸包名字判空
 				if u.CallbackQuery.Message.ReplyToMessage.Sticker.SetName == "" {
@@ -198,7 +213,7 @@ func (m MessageSender) ThisSender(fmt string, u tgbotapi.Update) error {
 				} else {
 					return u.CallbackQuery.Message.ReplyToMessage.Sticker.SetName
 				}
-			}(u) + "." + fmt})
+			}(u) + "." + format.String()})
 			downloaderPool.Put(dl)
 			msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
 			downloadCounter.Single++
@@ -273,7 +288,7 @@ func (m MessageSender) ChangeUserLanguage(u tgbotapi.Update, lang string) error 
 }
 
 // 贴纸集下载
-func (m MessageSender) ZipSender(fmt string, u tgbotapi.Update) error {
+func (m MessageSender) ZipSender(fmt utils.Format, u tgbotapi.Update) error {
 	go func(u tgbotapi.Update) error {
 		var requestFile tgbotapi.RequestFileData
 		var fileSize int64
@@ -287,7 +302,7 @@ func (m MessageSender) ZipSender(fmt string, u tgbotapi.Update) error {
 			logger.Error("%s", err)
 		}
 
-		fileID, fileSize, stickerNum, err := cache.GetCacheFileID(stickerSet.Name, fmt)
+		fileID, fileSize, stickerNum, err := cache.GetCacheFileID(stickerSet, fmt)
 		if err == nil && fileID != "" && !(fileSize == 0 || stickerNum == 0) { //判定缓存 如果数据库中贴纸数量和大小存在问题 强制刷新
 			requestFile = tgbotapi.FileID(fileID)
 			downloadCounter.CacheHit++
@@ -321,17 +336,17 @@ func (m MessageSender) ZipSender(fmt string, u tgbotapi.Update) error {
 		message, err := utils.Bot.Send(msg)
 		if err == nil {
 			switch fmt { //为数据库添加数据
-			case "webp":
+			case utils.WebpFormat:
 				{
-					db.RecordStickerData(stickerSet.Name, stickerSet.Title, userID, message.Document.FileID, fileSize, "", 0, "", 0, len(stickerSet.Stickers), hashCalculator.CalculateHashViaSetName(stickerSet.Name))
+					db.RecordStickerData(stickerSet, userID, message.Document.FileID, fileSize, "", 0, "", 0)
 				}
-			case "png":
+			case utils.PngFormat:
 				{
-					db.RecordStickerData(stickerSet.Name, stickerSet.Title, userID, "", 0, message.Document.FileID, fileSize, "", 0, len(stickerSet.Stickers), hashCalculator.CalculateHashViaSetName(stickerSet.Name))
+					db.RecordStickerData(stickerSet, userID, "", 0, message.Document.FileID, fileSize, "", 0)
 				}
-			case "jpeg":
+			case utils.JpegFormat:
 				{
-					db.RecordStickerData(stickerSet.Name, stickerSet.Title, userID, "", 0, "", 0, message.Document.FileID, fileSize, len(stickerSet.Stickers), hashCalculator.CalculateHashViaSetName(stickerSet.Name))
+					db.RecordStickerData(stickerSet, userID, "", 0, "", 0, message.Document.FileID, fileSize)
 				}
 			default:
 				//TODO 默认处理
