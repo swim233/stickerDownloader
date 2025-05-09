@@ -25,8 +25,6 @@ type Config struct {
 	WebPToJPEGQuality   int    // WebP转JPEG的质量 范围为0-100
 	HTTPServerPort      string // HTTP服务器端口
 	EnableHTTPServer    bool   // 是否开启HTTP服务器
-	EnableCache         bool   // 是否使用缓存
-	CacheExpirationTime int    // 缓存过期时间,单位 分钟
 	MaxConcurrency      int    //最大并发数
 }
 
@@ -69,9 +67,6 @@ HTTPServerPort=:8070
 
 # 是否启用 HTTP 服务器 (true/false)
 EnableHTTPServer=false
-
-# 是否启用缓存 (true/false)
-EnableCache=true
 
 # 缓存过期时间 (单位: 分钟)
 CacheExpirationTime=120
@@ -203,14 +198,6 @@ func getEnv() {
 
 	BotConfig.HTTPServerPort = os.Getenv("HTTPServerPort") //读取http server 端口
 
-	BotConfig.EnableCache = (os.Getenv("EnableCache") == "true") //读取是否启用缓存
-
-	BotConfig.CacheExpirationTime, err = (strconv.Atoi(os.Getenv("CacheExpirationTime"))) //读取缓存过期时间
-	if err != nil {
-		logger.Error("读取配置文件时出错: %s", err.Error())
-		os.Exit(1)
-		err = nil
-	}
 
 	BotConfig.MaxConcurrency, err = (strconv.Atoi(os.Getenv("MaxConcurrency"))) // 读取最大并发数
 	if err != nil {

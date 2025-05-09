@@ -47,12 +47,6 @@ HTTPServerPort=:8070
 # 是否启用 HTTP 服务器 (true/false)
 EnableHTTPServer=false
 
-# 是否启用缓存 (true/false)
-EnableCache=true
-
-# 缓存过期时间 (单位: 分钟)
-CacheExpirationTime=120
-
 # 最大并发数  
 MaxConcurrency=5
 ```

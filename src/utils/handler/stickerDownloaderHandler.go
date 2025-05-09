@@ -60,7 +60,7 @@ func (s StickerDownloader) DownloadStickerSet(format utils.Format, stickerSet tg
 	var name string
 	var mu sync.Mutex
 	var downloadErrorArray []error
-	logger.Info("%s", stickerSet.Name)
+	logger.Info("当前贴纸名 ：%s", stickerSet.Name)
 	name, err := os.MkdirTemp(".", "sticker")
 	addErr := func(err error) { //错误处理
 		mu.Lock()
@@ -83,13 +83,14 @@ func (s StickerDownloader) DownloadStickerSet(format utils.Format, stickerSet tg
 			var filePath string
 			if sticker.IsVideo {
 				filePath = path.Join(name, strconv.Itoa(index)+".webm")
+			} else if sticker.IsAnimated {
+				filePath = path.Join(name, strconv.Itoa(index)+".tgs")
 			} else {
 				switch {
 				case format == utils.PngFormat:
 					fc := formatConverter{}
 					data, _ = fc.convertWebPToPNG(data)
 					filePath = path.Join(name, strconv.Itoa(index)+".png")
-					break
 				case format == utils.JpegFormat:
 					fc := formatConverter{}
 					data, _ = fc.convertWebPToJPEG(data, utils.BotConfig.WebPToJPEGQuality)
@@ -123,7 +124,7 @@ func (s StickerDownloader) DownloadStickerSet(format utils.Format, stickerSet tg
 		for _, err := range downloadErrorArray {
 			combinedError += err.Error() + "; "
 		}
-		logger.Error("%s", combinedError)
+		logger.Error("下载时发生错误 ：%s", combinedError)
 	} else {
 		zipfile, err := compressFiles(name)
 
@@ -208,7 +209,7 @@ func (s StickerDownloader) HTTPDownloadStickerSet(fmt string, setName string) ([
 			combinedError += err.Error() + "; "
 			downloadCounter.Error++
 		}
-		logger.Error("%s", combinedError)
+		logger.Error("下载时发生错误 ：%s", combinedError)
 		err := errors.New(combinedError)
 		return nil, err
 	} else {
