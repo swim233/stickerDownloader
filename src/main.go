@@ -13,13 +13,27 @@ import (
 	"github.com/swim233/StickerDownloader/utils/logger"
 )
 
+var (
+	version    string
+	commitHash string
+	buildTime  string
+)
+
 func main() {
+	logger.Info("版本号: %s", version)
+	logger.Info("提交哈希: %s", commitHash)
+	parse, err := time.Parse(time.RFC3339, buildTime)
+	if err != nil {
+		logger.Info("构建时间: %s", buildTime)
+	} else {
+		logger.Info("构建时间: %s", parse.Format("2006-01-02 15:04:05"))
+	}
 	db.InitDB()                              //初始化数据库
 	utils.InitBot()                          //初始化bot配置
 	b := utils.Bot.AddHandle()               //注册handler
 	messageSender := handler.MessageSender{} //实例化handler
 	go httpserver.StartHTTPServer()          //开启http服务器
-	err := handler.LoadTranslations()        //加载i18n文件
+	err = handler.LoadTranslations()         //加载i18n文件
 	if err != nil {
 		logger.Error("加载i18文件时出错 : %s", err.Error())
 		os.Exit(1)
