@@ -26,7 +26,7 @@ func main() {
 	if err != nil {
 		logger.Info("构建时间: %s", buildTime)
 	} else {
-		logger.Info("构建时间: %s", parse.Format("2006-01-02 15:04:05"))
+		logger.Info("构建时间: %s", parse.Format("2006-01-02 15:04:05 UTC-07:00"))
 	}
 	db.InitDB()                              //初始化数据库
 	utils.InitBot()                          //初始化bot配置
