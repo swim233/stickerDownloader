@@ -293,13 +293,12 @@ func (m MessageSender) ZipSender(fmt string, u tgbotapi.Update) error {
 			downloadCounter.CacheHit++
 			db.RecordUserData(u, fileSize, stickerNum)
 			logger.Info("缓存命中")
-			logger.Error("size:%d,num:%d", fileSize, stickerNum) //FIXME
 		} else {
 
 			processingMsg := tgbotapi.EditMessageTextConfig{Text: "贴纸包下载中 请稍等... \nDownloading... ", BaseEdit: tgbotapi.BaseEdit{ChatID: chatID, MessageID: u.CallbackQuery.Message.MessageID}}
 			utils.Bot.Send(processingMsg)                                     //TODO 进度汇报
 			downloaderPool := NewBlockingPool(utils.BotConfig.MaxConcurrency) //获取下载线程
-			dl := downloaderPool.Get()
+			dl := downloaderPool.Get()  
 			data, stickerSetTitle, stickerNum, err := dl.DownloadStickerSet(fmt, stickerSet, u) //下载贴纸数据
 			fileSize = int64(len(data))
 			if err != nil {
