@@ -182,22 +182,22 @@ func (m MessageSender) ThisSender(format utils.Format, u tgbotapi.Update) error 
 				switch format {
 				case utils.JpegFormat:
 					if err != nil {
-						logger.Error("%s", err.Error())
+						logger.Error("下载文件时出错 ：%s", err.Error())
 					}
 					fc := formatConverter{}
 					jpeg, err := fc.convertWebPToJPEG(webp, utils.BotConfig.WebPToJPEGQuality)
 					if err != nil {
-						logger.Error("%s", err.Error())
+						logger.Error("下载文件时出错 ：%s", err.Error())
 					}
 					return jpeg
 				case utils.PngFormat:
 					if err != nil {
-						logger.Error("%s", err.Error())
+						logger.Error("下载文件时出错 ：%s", err.Error())
 					}
 					fc := formatConverter{}
 					png, err := fc.convertWebPToPNG(webp)
 					if err != nil {
-						logger.Error("%s", err.Error())
+						logger.Error("下载文件时出错 ：%s", err.Error())
 					}
 					return png
 				// 在上面早返回已经被处理了 但是留着以防万一
@@ -279,7 +279,7 @@ func (m MessageSender) ChangeUserLanguage(u tgbotapi.Update, lang string) error 
 	userID := u.CallbackQuery.Message.ReplyToMessage.From.ID
 	err := db.ChangeUserLanguage(userID, lang)
 	if err != nil {
-		logger.Error("%s", err)
+		logger.Error("修改语言时出错 ：%s", err)
 		return err
 	}
 	editMsg := tgbotapi.NewEditMessageText(u.CallbackQuery.Message.ReplyToMessage.From.ID, u.CallbackQuery.Message.MessageID, translations[db.GetUserLanguage(userID)].SuccessChangeLanguage)
@@ -299,7 +299,7 @@ func (m MessageSender) ZipSender(fmt utils.Format, u tgbotapi.Update) error {
 
 		stickerSet, err := utils.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: getStickerSet(u)}) //获取贴纸包
 		if err != nil {
-			logger.Error("%s", err)
+			logger.Error("获取贴纸集时出错 ：%s", err)
 		}
 
 		fileID, fileSize, stickerNum, err := cache.GetCacheFileID(stickerSet, fmt)
@@ -313,11 +313,11 @@ func (m MessageSender) ZipSender(fmt utils.Format, u tgbotapi.Update) error {
 			processingMsg := tgbotapi.EditMessageTextConfig{Text: "贴纸包下载中 请稍等... \nDownloading... ", BaseEdit: tgbotapi.BaseEdit{ChatID: chatID, MessageID: u.CallbackQuery.Message.MessageID}}
 			utils.Bot.Send(processingMsg)                                     //TODO 进度汇报
 			downloaderPool := NewBlockingPool(utils.BotConfig.MaxConcurrency) //获取下载线程
-			dl := downloaderPool.Get()  
+			dl := downloaderPool.Get()
 			data, stickerSetTitle, stickerNum, err := dl.DownloadStickerSet(fmt, stickerSet, u) //下载贴纸数据
 			fileSize = int64(len(data))
 			if err != nil {
-				logger.Error("%s", err)
+				logger.Error("下载贴纸时出错 ：%s", err)
 			}
 			if fileSize == 0 {
 				msg := tgbotapi.NewMessage(chatID, translations[db.GetUserLanguage(userID)].StickerSetIsNull) //贴纸包为空
@@ -352,6 +352,8 @@ func (m MessageSender) ZipSender(fmt utils.Format, u tgbotapi.Update) error {
 				//TODO 默认处理
 			}
 
+		} else {
+			logger.Error("为数据库添加贴纸数据时出错 ：%s", err.Error())
 		} //发送消息
 
 		u.CallbackQuery.Delete()
@@ -371,7 +373,7 @@ func (m MessageSender) CancelDownload(u tgbotapi.Update) error {
 	_, err := utils.Bot.Request(deleteMsg)
 	if err != nil {
 
-		logger.Error("%s", err.Error())
+		logger.Error("取消操作时出错 ： %s", err.Error())
 		return err
 	}
 	return err
@@ -388,7 +390,7 @@ func (m MessageSender) HelpMessage(u tgbotapi.Update) error {
 func (m MessageSender) StartMessage(u tgbotapi.Update) error {
 	err := m.LanguageChose(u)
 	if err != nil {
-		logger.Error("%s", err)
+		logger.Error("发送开始消息时出错 ：%s", err)
 	}
 	m.HelpMessage(u)
 	return db.InitUserData(u)
@@ -398,6 +400,7 @@ func (m MessageSender) StartMessage(u tgbotapi.Update) error {
 func LoadTranslations() error {
 	data, err := os.ReadFile("locales.json")
 	if err != nil {
+		logger.Error("加载翻译文件时出错 ：%s", err.Error())
 		return err
 	}
 	return json.Unmarshal(data, &translations)
