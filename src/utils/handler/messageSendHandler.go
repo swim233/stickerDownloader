@@ -139,8 +139,17 @@ func (m MessageSender) ButtonMessageSender(u tgbotapi.Update, sticker tgbotapi.S
 // 单个贴纸下载
 func (m MessageSender) ThisSender(format utils.Format, u tgbotapi.Update) error {
 	go func(u tgbotapi.Update) error {
+		defer func() {
+			if err := recover(); err != nil {
+				logger.Error("发生错误 从Panic中恢复")
+				update := fmt.Sprintln(u)
+				logger.Error("%s", update)
+				downloadCounter.Error++
+				//捕获错误
+			}
+		}()
 		chatID := u.CallbackQuery.Message.Chat.ID
-		userID := u.CallbackQuery.Message.From.ID
+		userID := u.CallbackQuery.Message.Chat.ID
 
 		u.CallbackQuery.Answer(false, translations[db.GetUserLanguage(userID)].DownloadingSingleSticker)
 

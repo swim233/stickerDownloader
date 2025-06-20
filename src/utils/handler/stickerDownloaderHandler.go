@@ -95,13 +95,10 @@ func (s StickerDownloader) DownloadStickerSet(format utils.Format, stickerSet tg
 					fc := formatConverter{}
 					data, _ = fc.convertWebPToJPEG(data, utils.BotConfig.WebPToJPEGQuality)
 					filePath = path.Join(name, strconv.Itoa(index)+".jpeg")
-					break
-				default:
-					logger.Warn("未实现的格式: %v, 作为webp处理", format)
-					fallthrough
 				case format == utils.WebpFormat:
 					filePath = path.Join(name, strconv.Itoa(index)+".webp")
-					break
+				default:
+					logger.Warn("未实现的格式: %v, 作为webp处理", format)
 				}
 			}
 			file, err := os.Create(filePath)
