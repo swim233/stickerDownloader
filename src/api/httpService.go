@@ -1,20 +1,20 @@
-package httpserver
+package api
 
 import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/swim233/StickerDownloader/utils"
-	"github.com/swim233/StickerDownloader/utils/handler"
+	"github.com/swim233/StickerDownloader/core"
+	"github.com/swim233/StickerDownloader/handler"
 	"github.com/swim233/StickerDownloader/utils/logger"
 )
 
 func StartHTTPServer() {
-	if utils.BotConfig.EnableHTTPServer {
+	if core.BotConfig.EnableHTTPServer {
 		logger.Info("HTTP服务器已开启")
 		http.HandleFunc("/stickerpack", handleStickerPack)
 
-		port := utils.BotConfig.HTTPServerPort
+		port := core.BotConfig.HTTPServerPort
 
 		logger.Info("[HTTP] Server started on %s", port)
 		err := http.ListenAndServe(port, nil)

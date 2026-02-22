@@ -9,7 +9,7 @@ import (
 
 	"github.com/glebarez/sqlite"
 	tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
-	"github.com/swim233/StickerDownloader/utils/hashCalculator"
+	"github.com/swim233/StickerDownloader/utils"
 	"gorm.io/gorm"
 )
 
@@ -136,7 +136,7 @@ func RecordStickerData(set tgbotapi.StickerSet, UserID int64, WebPFileID string,
 	setName := set.Name
 	title := set.Title
 	StickerNum := len(set.Stickers)
-	SetHash := hashCalculator.CalculateStickerSet(set)
+	SetHash := utils.CalculateStickerSet(set)
 	err := DB.Where("sticker_name = ?", setName).First(&newStickerSetData).Error
 	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
 		err := DB.Create(StickerData{
@@ -178,7 +178,7 @@ func RecordStickerData(set tgbotapi.StickerSet, UserID int64, WebPFileID string,
 			newStickerSetData.JPEGFileID = JPEGFileID
 			newStickerSetData.JPEGFileSize = JPEGFileSize
 		}
-		newStickerSetData.SetHash = hashCalculator.CalculateStickerSet(set)
+		newStickerSetData.SetHash = utils.CalculateStickerSet(set)
 		newStickerSetData.StickerNum += StickerNum
 		err := DB.Where("sticker_name = ?", setName).Save(&newStickerSetData).Error
 		if err != nil {

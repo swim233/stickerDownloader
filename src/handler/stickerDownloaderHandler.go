@@ -15,6 +15,7 @@ import (
 	"sync"
 
 	tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
+	"github.com/swim233/StickerDownloader/core"
 	"github.com/swim233/StickerDownloader/utils"
 	"github.com/swim233/StickerDownloader/utils/logger"
 )
@@ -93,7 +94,7 @@ func (s StickerDownloader) DownloadStickerSet(format utils.Format, stickerSet tg
 					filePath = path.Join(name, strconv.Itoa(index)+".png")
 				case format == utils.JpegFormat:
 					fc := formatConverter{}
-					data, _ = fc.convertWebPToJPEG(data, utils.BotConfig.WebPToJPEGQuality)
+					data, _ = fc.convertWebPToJPEG(data, core.BotConfig.WebPToJPEGQuality)
 					filePath = path.Join(name, strconv.Itoa(index)+".jpeg")
 				case format == utils.WebpFormat:
 					filePath = path.Join(name, strconv.Itoa(index)+".webp")
@@ -137,7 +138,7 @@ func (s StickerDownloader) HTTPDownloadStickerSet(fmt string, setName string) ([
 		downloadCounter.Error++
 		return nil, err
 	}
-	stickerSet, err := utils.HTTPBot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: setName})
+	stickerSet, err := core.HTTPBot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: setName})
 	stickerNum := len(stickerSet.Stickers)
 	var wg sync.WaitGroup
 	var name string
@@ -179,7 +180,7 @@ func (s StickerDownloader) HTTPDownloadStickerSet(fmt string, setName string) ([
 					filePath = path.Join(name, strconv.Itoa(index)+".png")
 				case "jpeg":
 					fc := formatConverter{}
-					data, _ = fc.convertWebPToJPEG(data, utils.BotConfig.WebPToJPEGQuality)
+					data, _ = fc.convertWebPToJPEG(data, core.BotConfig.WebPToJPEGQuality)
 					filePath = path.Join(name, strconv.Itoa(index)+".jpeg")
 				default:
 					filePath = path.Join(name, strconv.Itoa(index)+".webp")
@@ -226,7 +227,7 @@ func (s StickerDownloader) getUrl(update tgbotapi.Update) (url string, err error
 			return "", err
 		}
 		return fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", bot.Token, file.FilePath), nil
-	}(*utils.Bot, fileID)
+	}(*core.Bot, fileID)
 	if err != nil {
 		downloadCounter.Error++
 		return "", err
@@ -243,7 +244,7 @@ func (s StickerDownloader) getSetUrl(sticker tgbotapi.Sticker) (url string, err 
 			return "", err
 		}
 		return fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", bot.Token, file.FilePath), nil
-	}(*utils.Bot, fileID)
+	}(*core.Bot, fileID)
 	if err != nil {
 		downloadCounter.Error++
 		return "", err

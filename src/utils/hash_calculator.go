@@ -1,8 +1,9 @@
-package hashCalculator
+package utils
 
 import (
 	"crypto/md5"
 	"encoding/hex"
+
 	tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
 )
 

@@ -1,4 +1,4 @@
-package utils
+package core
 
 import (
 	"fmt"
@@ -18,14 +18,14 @@ var Bot *tgbotapi.BotAPI
 var HTTPBot *tgbotapi.BotAPI
 
 type Config struct {
-	Token               string // Telegram Bot Token
-	HTTPToken           string // HTTP服务Bot Token
-	DebugFlag           bool   // 是否开启debug输出
-	ApiLogLevel         int    // 日志等级
-	WebPToJPEGQuality   int    // WebP转JPEG的质量 范围为0-100
-	HTTPServerPort      string // HTTP服务器端口
-	EnableHTTPServer    bool   // 是否开启HTTP服务器
-	MaxConcurrency      int    //最大并发数
+	Token             string // Telegram Bot Token
+	HTTPToken         string // HTTP服务Bot Token
+	DebugFlag         bool   // 是否开启debug输出
+	ApiLogLevel       int    // 日志等级
+	WebPToJPEGQuality int    // WebP转JPEG的质量 范围为0-100
+	HTTPServerPort    string // HTTP服务器端口
+	EnableHTTPServer  bool   // 是否开启HTTP服务器
+	MaxConcurrency    int    //最大并发数
 }
 
 var BotConfig Config
@@ -197,7 +197,6 @@ func getEnv() {
 	BotConfig.EnableHTTPServer = (os.Getenv("EnableHTTPServer") == "true") //读取是否开启http服务
 
 	BotConfig.HTTPServerPort = os.Getenv("HTTPServerPort") //读取http server 端口
-
 
 	BotConfig.MaxConcurrency, err = (strconv.Atoi(os.Getenv("MaxConcurrency"))) // 读取最大并发数
 	if err != nil {
