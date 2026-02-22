@@ -4,13 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/swim233/StickerDownloader/cache"
 	"github.com/swim233/StickerDownloader/core"
 	"github.com/swim233/StickerDownloader/lib"
-
-	"time"
 
 	tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
 	db "github.com/swim233/StickerDownloader/db"
@@ -44,63 +41,6 @@ func (p *BlockingPool) Get() *StickerDownloader {
 // 归还对象到池中，如果池满了也会阻塞等待
 func (p *BlockingPool) Put(d *StickerDownloader) {
 	p.pool <- d
-}
-
-type DownloadCounter struct {
-	Single        int
-	Pack          int
-	HTTPSingle    int
-	HTTPPack      int
-	Error         int
-	CacheHit      int
-	HitPercentage float64
-}
-
-var StartTime time.Time
-
-var downloadCounter DownloadCounter
-
-// 计数器
-func (m MessageSender) CountSender(u tgbotapi.Update) error {
-	chatID := u.Message.From.ID
-	if downloadCounter.CacheHit != 0 {
-		downloadCounter.HitPercentage = float64(downloadCounter.CacheHit) / (float64(downloadCounter.Pack) + float64(downloadCounter.HTTPPack)) * 100
-	}
-
-	//运行时间计算
-	timeString := func(duration time.Duration) string {
-		var timeString string
-		days := duration / (24 * time.Hour)
-		if days > 0 {
-			timeString += fmt.Sprintf("%d天", days)
-		}
-		hours := (duration - days*24*time.Hour) / time.Hour
-		if days > 0 || hours > 0 {
-			timeString += fmt.Sprintf("%d时", hours)
-		}
-		minutes := (duration - days*24*time.Hour - hours*time.Hour) / time.Minute
-		if days > 0 || hours > 0 || minutes > 0 {
-			timeString += fmt.Sprintf("%d分", minutes)
-		}
-		seconds := (duration - days*24*time.Hour - hours*time.Hour - minutes*time.Minute) / time.Second
-		if days > 0 || hours > 0 || minutes > 0 || seconds > 0 {
-			timeString += fmt.Sprintf("%d秒", seconds)
-		}
-		return timeString
-	}(time.Since(StartTime))
-
-	msg := tgbotapi.NewMessage(chatID,
-		"启动时间 : "+StartTime.Format("2006-01-02 15:04:05")+"\n"+
-			"本次运行时间 : "+timeString+"\n"+
-			"机器人已下载贴纸总数 : "+strconv.Itoa(downloadCounter.Single)+"\n"+
-			"机器人已下载贴纸包数 : "+strconv.Itoa(downloadCounter.Pack)+"\n"+
-			"HTTP服务器已下载贴纸总数 : "+strconv.Itoa(downloadCounter.HTTPSingle)+"\n"+
-			"HTTP服务器已下载贴纸包数 : "+strconv.Itoa(downloadCounter.HTTPPack)+"\n"+
-			"缓存生效次数 : "+strconv.Itoa(downloadCounter.CacheHit)+"\n"+
-			"缓存命中率 : "+strconv.FormatFloat(downloadCounter.HitPercentage, 'f', 1, 64)+"%\n"+
-			"发生错误数 : "+strconv.Itoa(downloadCounter.Error))
-	core.Bot.Send(msg)
-	return nil
 }
 
 // 发送按钮消息
@@ -137,7 +77,7 @@ func (m MessageSender) ThisSender(format utils.Format, u tgbotapi.Update) error 
 					fmt.Println(string(update))
 				}
 				logger.Error("%s", update)
-				downloadCounter.Error++
+				utils.RuntimeStatus.Errors++
 				//捕获错误
 			}
 		}()
@@ -152,7 +92,7 @@ func (m MessageSender) ThisSender(format utils.Format, u tgbotapi.Update) error 
 		if format == utils.WebpFormat {
 			msg := tgbotapi.NewDocument(chatID, tgbotapi.FileID(u.CallbackQuery.Message.ReplyToMessage.Sticker.FileID))
 			msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
-			downloadCounter.Single++
+			utils.RuntimeStatus.SingleDownload++
 			// 这里的FileSize可能为0 如果需要精确审计可能不能使用早返回
 			db.RecordUserData(u, int64(u.CallbackQuery.Message.ReplyToMessage.Sticker.FileSize), 1)
 			core.Bot.Send(msg)
@@ -176,7 +116,7 @@ func (m MessageSender) ThisSender(format utils.Format, u tgbotapi.Update) error 
 				}
 			}(u) + ".webm"})
 			msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
-			downloadCounter.Single++
+			utils.RuntimeStatus.SingleDownload++
 			core.Bot.Send(msg)
 
 		} else {
@@ -220,7 +160,7 @@ func (m MessageSender) ThisSender(format utils.Format, u tgbotapi.Update) error 
 			}(u) + "." + format.String()})
 			downloaderPool.Put(dl)
 			msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
-			downloadCounter.Single++
+			utils.RuntimeStatus.SingleDownload++
 			core.Bot.Send(msg)
 
 		}
@@ -309,8 +249,8 @@ func (m MessageSender) ZipSender(fmt utils.Format, u tgbotapi.Update) error {
 		fileID, fileSize, stickerNum, err := cache.GetCacheFileID(stickerSet, fmt)
 		if err == nil && fileID != "" && !(fileSize == 0 || stickerNum == 0) { //判定缓存 如果数据库中贴纸数量和大小存在问题 强制刷新
 			requestFile = tgbotapi.FileID(fileID)
-			downloadCounter.Pack++
-			downloadCounter.CacheHit++
+			utils.RuntimeStatus.PackDownload++
+			utils.RuntimeStatus.CacheHits++
 			db.RecordUserData(u, fileSize, stickerNum)
 			logger.Info("缓存命中")
 		} else {
@@ -337,7 +277,7 @@ func (m MessageSender) ZipSender(fmt utils.Format, u tgbotapi.Update) error {
 
 		msg := tgbotapi.NewDocument(chatID, requestFile)
 		msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
-		downloadCounter.Pack++
+		utils.RuntimeStatus.PackDownload++
 		message, err := core.Bot.Send(msg)
 		if err == nil {
 			switch fmt { //为数据库添加数据

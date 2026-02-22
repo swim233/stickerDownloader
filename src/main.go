@@ -72,7 +72,7 @@ func main() {
 		}
 		return false
 	}, nil)
-	b.NewPrivateCommandProcessor("count", messageSender.CountSender)
+	b.NewPrivateCommandProcessor("count", utils.SendRuntimeStatusInfo)
 	b.NewPrivateCommandProcessor("help", messageSender.HelpMessage)
 	b.NewPrivateCommandProcessor("start", messageSender.StartMessage)
 	b.NewPrivateCommandProcessor("lang", messageSender.LanguageChose)
@@ -111,6 +111,6 @@ func main() {
 	b.NewCallBackProcessor("lang_jp", func(u tgbotapi.Update) error {
 		return messageSender.ChangeUserLanguage(u, "jp")
 	})
-	handler.StartTime = time.Now()
+	utils.RuntimeStatus.StartTime = time.Now()
 	b.Run()
 }

@@ -110,7 +110,7 @@ func (s StickerDownloader) DownloadStickerSet(format utils.Format, stickerSet tg
 			if err != nil {
 				addErr(err)
 			}
-			downloadCounter.Single++
+			utils.RuntimeStatus.SingleDownload++
 			file.Close()
 			wg.Done()
 		}()
@@ -135,7 +135,7 @@ func (s StickerDownloader) DownloadStickerSet(format utils.Format, stickerSet tg
 func (s StickerDownloader) HTTPDownloadStickerSet(fmt string, setName string) ([]byte, error) {
 	if fmt != "webp" && fmt != "png" && fmt != "jpeg" {
 		err := errors.New("format is error")
-		downloadCounter.Error++
+		utils.RuntimeStatus.Errors++
 		return nil, err
 	}
 	stickerSet, err := core.HTTPBot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: setName})
@@ -195,7 +195,7 @@ func (s StickerDownloader) HTTPDownloadStickerSet(fmt string, setName string) ([
 			if err != nil {
 				addErr(err)
 			}
-			downloadCounter.HTTPSingle++
+			utils.RuntimeStatus.HTTPSingleDownload++
 			file.Close()
 			wg.Done()
 		}()
@@ -206,14 +206,14 @@ func (s StickerDownloader) HTTPDownloadStickerSet(fmt string, setName string) ([
 		var combinedError string
 		for _, err := range downloadErrorArray {
 			combinedError += err.Error() + "; "
-			downloadCounter.Error++
+			utils.RuntimeStatus.Errors++
 		}
 		logger.Error("下载时发生错误 ：%s", combinedError)
 		err := errors.New(combinedError)
 		return nil, err
 	} else {
 		zipfile, err := compressFiles(name)
-		downloadCounter.HTTPPack++
+		utils.RuntimeStatus.HTTPPackDownload++
 		return zipfile, err
 	}
 }
@@ -229,7 +229,7 @@ func (s StickerDownloader) getUrl(update tgbotapi.Update) (url string, err error
 		return fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", bot.Token, file.FilePath), nil
 	}(*core.Bot, fileID)
 	if err != nil {
-		downloadCounter.Error++
+		utils.RuntimeStatus.Errors++
 		return "", err
 	}
 	return FileURL, nil
@@ -246,7 +246,7 @@ func (s StickerDownloader) getSetUrl(sticker tgbotapi.Sticker) (url string, err 
 		return fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", bot.Token, file.FilePath), nil
 	}(*core.Bot, fileID)
 	if err != nil {
-		downloadCounter.Error++
+		utils.RuntimeStatus.Errors++
 		return "", err
 	}
 	return FileURL, nil
