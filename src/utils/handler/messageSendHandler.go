@@ -138,20 +138,29 @@ func (m MessageSender) ButtonMessageSender(u tgbotapi.Update, sticker tgbotapi.S
 
 // 单个贴纸下载
 func (m MessageSender) ThisSender(format utils.Format, u tgbotapi.Update) error {
+	ChatID := u.CallbackQuery.Message.Chat.ID
+	UserID := u.CallbackQuery.Message.From.ID
 	go func(u tgbotapi.Update) error {
 		defer func() {
 			if err := recover(); err != nil {
 				logger.Error("发生错误 从Panic中恢复")
-				update := fmt.Sprintln(u)
+				update, err := json.MarshalIndent(u, "", "  ")
+				if err != nil {
+					logger.Error("序列化 update 时出错: %v", err)
+				} else {
+					fmt.Println(string(update))
+				}
 				logger.Error("%s", update)
 				downloadCounter.Error++
 				//捕获错误
 			}
 		}()
-		chatID := u.CallbackQuery.Message.Chat.ID
-		userID := u.CallbackQuery.Message.Chat.ID
+		chatID := ChatID
+		userID := UserID
 
-		u.CallbackQuery.Answer(false, translations[db.GetUserLanguage(userID)].DownloadingSingleSticker)
+		if userID != 0 {
+			u.CallbackQuery.Answer(false, translations[db.GetUserLanguage(userID)].DownloadingSingleSticker)
+		}
 
 		// 早返回
 		if format == utils.WebpFormat {

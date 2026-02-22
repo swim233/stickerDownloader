@@ -172,15 +172,16 @@ func (s StickerDownloader) HTTPDownloadStickerSet(fmt string, setName string) ([
 				filePath = path.Join(name, strconv.Itoa(index)+".webm")
 			} else {
 
-				if fmt == "png" {
+				switch fmt {
+				case "png":
 					fc := formatConverter{}
 					data, _ = fc.convertWebPToPNG(data)
 					filePath = path.Join(name, strconv.Itoa(index)+".png")
-				} else if fmt == "jpeg" {
+				case "jpeg":
 					fc := formatConverter{}
 					data, _ = fc.convertWebPToJPEG(data, utils.BotConfig.WebPToJPEGQuality)
 					filePath = path.Join(name, strconv.Itoa(index)+".jpeg")
-				} else {
+				default:
 					filePath = path.Join(name, strconv.Itoa(index)+".webp")
 				}
 
