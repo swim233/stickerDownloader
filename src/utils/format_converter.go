@@ -1,4 +1,4 @@
-package handler
+package utils
 
 import (
 	"bytes"
@@ -6,16 +6,16 @@ import (
 	"image/jpeg"
 	"image/png"
 
-	"github.com/swim233/StickerDownloader/utils/logger"
+	"github.com/swim233/StickerDownloader/logger"
 	_ "golang.org/x/image/webp"
 )
 
-type formatConverter struct {
+type FormatConverter struct {
 }
 
 // 将 WebP 转换为 PNG
-func (f formatConverter) convertWebPToPNG(webp []byte) ([]byte, error) {
-	reader := bytes.NewReader(webp)
+func (f FormatConverter) ConvertWebPToPNG(src []byte) (dist []byte, err error) {
+	reader := bytes.NewReader(src)
 	img, _, err := image.Decode(reader)
 	if err != nil {
 		logger.Error("转换格式时出错 ： %s", err.Error())
@@ -35,8 +35,8 @@ func (f formatConverter) convertWebPToPNG(webp []byte) ([]byte, error) {
 }
 
 // 将 WebP 转换为 JPEG
-func (f formatConverter) convertWebPToJPEG(webp []byte, quality int) ([]byte, error) {
-	reader := bytes.NewReader(webp)
+func (f FormatConverter) ConvertWebPToJPEG(src []byte, quality int) (dist []byte, err error) {
+	reader := bytes.NewReader(src)
 	img, _, err := image.Decode(reader)
 	if err != nil {
 		logger.Error("转换格式时出错 ： %s", err.Error())

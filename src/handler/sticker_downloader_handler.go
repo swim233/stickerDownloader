@@ -16,8 +16,9 @@ import (
 
 	tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
 	"github.com/swim233/StickerDownloader/core"
+	"github.com/swim233/StickerDownloader/lib"
+	"github.com/swim233/StickerDownloader/logger"
 	"github.com/swim233/StickerDownloader/utils"
-	"github.com/swim233/StickerDownloader/utils/logger"
 )
 
 type StickerDownloader struct {
@@ -55,7 +56,7 @@ func (s StickerDownloader) DownloadSetFile(sticker tgbotapi.Sticker) ([]byte, er
 }
 
 // 下载贴纸集
-func (s StickerDownloader) DownloadStickerSet(format utils.Format, stickerSet tgbotapi.StickerSet, u tgbotapi.Update) ([]byte, string, int, error) {
+func (s StickerDownloader) DownloadStickerSet(format lib.FileFormat, stickerSet tgbotapi.StickerSet, u tgbotapi.Update) ([]byte, string, int, error) {
 	stickerNum := len(stickerSet.Stickers)
 	var wg sync.WaitGroup
 	var name string
@@ -88,15 +89,15 @@ func (s StickerDownloader) DownloadStickerSet(format utils.Format, stickerSet tg
 				filePath = path.Join(name, strconv.Itoa(index)+".tgs")
 			} else {
 				switch {
-				case format == utils.PngFormat:
-					fc := formatConverter{}
-					data, _ = fc.convertWebPToPNG(data)
+				case format == lib.PngFormat:
+					fc := utils.FormatConverter{}
+					data, _ = fc.ConvertWebPToPNG(data)
 					filePath = path.Join(name, strconv.Itoa(index)+".png")
-				case format == utils.JpegFormat:
-					fc := formatConverter{}
-					data, _ = fc.convertWebPToJPEG(data, core.BotConfig.WebPToJPEGQuality)
+				case format == lib.JpegFormat:
+					fc := utils.FormatConverter{}
+					data, _ = fc.ConvertWebPToJPEG(data, core.BotConfig.WebPToJPEGQuality)
 					filePath = path.Join(name, strconv.Itoa(index)+".jpeg")
-				case format == utils.WebpFormat:
+				case format == lib.WebpFormat:
 					filePath = path.Join(name, strconv.Itoa(index)+".webp")
 				default:
 					logger.Warn("未实现的格式: %v, 作为webp处理", format)
@@ -175,12 +176,12 @@ func (s StickerDownloader) HTTPDownloadStickerSet(fmt string, setName string) ([
 
 				switch fmt {
 				case "png":
-					fc := formatConverter{}
-					data, _ = fc.convertWebPToPNG(data)
+					fc := utils.FormatConverter{}
+					data, _ = fc.ConvertWebPToPNG(data)
 					filePath = path.Join(name, strconv.Itoa(index)+".png")
 				case "jpeg":
-					fc := formatConverter{}
-					data, _ = fc.convertWebPToJPEG(data, core.BotConfig.WebPToJPEGQuality)
+					fc := utils.FormatConverter{}
+					data, _ = fc.ConvertWebPToJPEG(data, core.BotConfig.WebPToJPEGQuality)
 					filePath = path.Join(name, strconv.Itoa(index)+".jpeg")
 				default:
 					filePath = path.Join(name, strconv.Itoa(index)+".webp")

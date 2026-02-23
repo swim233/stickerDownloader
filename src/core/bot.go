@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/swim233/StickerDownloader/utils/logger"
+	"github.com/swim233/StickerDownloader/logger"
 
 	tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
 	godotenv "github.com/joho/godotenv"

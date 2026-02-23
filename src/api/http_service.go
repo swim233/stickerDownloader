@@ -6,7 +6,7 @@ import (
 
 	"github.com/swim233/StickerDownloader/core"
 	"github.com/swim233/StickerDownloader/handler"
-	"github.com/swim233/StickerDownloader/utils/logger"
+	"github.com/swim233/StickerDownloader/logger"
 )
 
 func StartHTTPServer() {

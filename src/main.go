@@ -10,8 +10,9 @@ import (
 	"github.com/swim233/StickerDownloader/core"
 	"github.com/swim233/StickerDownloader/db"
 	"github.com/swim233/StickerDownloader/handler"
+	"github.com/swim233/StickerDownloader/lib"
+	"github.com/swim233/StickerDownloader/logger"
 	"github.com/swim233/StickerDownloader/utils"
-	"github.com/swim233/StickerDownloader/utils/logger"
 )
 
 var (
@@ -80,27 +81,27 @@ func main() {
 	b.NewCallBackProcessor("zip", messageSender.ZipFormatChose)
 	b.NewCallBackProcessor("cancel", messageSender.CancelDownload)
 	b.NewCallBackProcessor("webp", func(u tgbotapi.Update) error {
-		return messageSender.ThisSender(utils.WebpFormat, u)
+		return messageSender.ThisSender(lib.WebpFormat, u)
 
 	})
 	b.NewCallBackProcessor("png", func(u tgbotapi.Update) error {
-		return messageSender.ThisSender(utils.PngFormat, u)
+		return messageSender.ThisSender(lib.PngFormat, u)
 
 	})
 	b.NewCallBackProcessor("jpeg", func(u tgbotapi.Update) error {
-		return messageSender.ThisSender(utils.JpegFormat, u)
+		return messageSender.ThisSender(lib.JpegFormat, u)
 
 	})
 	b.NewCallBackProcessor("zip_webp", func(u tgbotapi.Update) error {
-		return messageSender.ZipSender(utils.WebpFormat, u)
+		return messageSender.ZipSender(lib.WebpFormat, u)
 
 	})
 	b.NewCallBackProcessor("zip_png", func(u tgbotapi.Update) error {
-		return messageSender.ZipSender(utils.PngFormat, u)
+		return messageSender.ZipSender(lib.PngFormat, u)
 
 	})
 	b.NewCallBackProcessor("zip_jpeg", func(u tgbotapi.Update) error {
-		return messageSender.ZipSender(utils.JpegFormat, u)
+		return messageSender.ZipSender(lib.JpegFormat, u)
 	})
 	b.NewCallBackProcessor("lang_zh", func(u tgbotapi.Update) error {
 		return messageSender.ChangeUserLanguage(u, "zh")

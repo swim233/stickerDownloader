@@ -11,8 +11,8 @@ import (
 
 	tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
 	db "github.com/swim233/StickerDownloader/db"
+	logger "github.com/swim233/StickerDownloader/logger"
 	utils "github.com/swim233/StickerDownloader/utils"
-	logger "github.com/swim233/StickerDownloader/utils/logger"
 )
 
 type MessageSender struct {
@@ -63,7 +63,7 @@ func (m MessageSender) ButtonMessageSender(u tgbotapi.Update, sticker tgbotapi.S
 }
 
 // 单个贴纸下载
-func (m MessageSender) ThisSender(format utils.Format, u tgbotapi.Update) error {
+func (m MessageSender) ThisSender(format lib.FileFormat, u tgbotapi.Update) error {
 	ChatID := u.CallbackQuery.Message.Chat.ID
 	UserID := u.CallbackQuery.Message.From.ID
 	go func(u tgbotapi.Update) error {
@@ -89,7 +89,7 @@ func (m MessageSender) ThisSender(format utils.Format, u tgbotapi.Update) error 
 		}
 
 		// 早返回
-		if format == utils.WebpFormat {
+		if format == lib.WebpFormat {
 			msg := tgbotapi.NewDocument(chatID, tgbotapi.FileID(u.CallbackQuery.Message.ReplyToMessage.Sticker.FileID))
 			msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
 			utils.RuntimeStatus.SingleDownload++
@@ -124,28 +124,28 @@ func (m MessageSender) ThisSender(format utils.Format, u tgbotapi.Update) error 
 				webp, err := dl.DownloadFile(u)
 				db.RecordUserData(u, int64(len(webp)), 1)
 				switch format {
-				case utils.JpegFormat:
+				case lib.JpegFormat:
 					if err != nil {
 						logger.Error("下载文件时出错 ：%s", err.Error())
 					}
-					fc := formatConverter{}
-					jpeg, err := fc.convertWebPToJPEG(webp, core.BotConfig.WebPToJPEGQuality)
+					fc := utils.FormatConverter{}
+					jpeg, err := fc.ConvertWebPToJPEG(webp, core.BotConfig.WebPToJPEGQuality)
 					if err != nil {
 						logger.Error("下载文件时出错 ：%s", err.Error())
 					}
 					return jpeg
-				case utils.PngFormat:
+				case lib.PngFormat:
 					if err != nil {
 						logger.Error("下载文件时出错 ：%s", err.Error())
 					}
-					fc := formatConverter{}
-					png, err := fc.convertWebPToPNG(webp)
+					fc := utils.FormatConverter{}
+					png, err := fc.ConvertWebPToPNG(webp)
 					if err != nil {
 						logger.Error("下载文件时出错 ：%s", err.Error())
 					}
 					return png
 				// 在上面早返回已经被处理了 但是留着以防万一
-				case utils.WebpFormat:
+				case lib.WebpFormat:
 					return webp
 				default:
 					logger.Warn("未实现的格式: %v, 作为webp处理", format)
@@ -232,7 +232,7 @@ func (m MessageSender) ChangeUserLanguage(u tgbotapi.Update, lang string) error 
 }
 
 // 贴纸集下载
-func (m MessageSender) ZipSender(fmt utils.Format, u tgbotapi.Update) error {
+func (m MessageSender) ZipSender(fmt lib.FileFormat, u tgbotapi.Update) error {
 	go func(u tgbotapi.Update) error {
 		var requestFile tgbotapi.RequestFileData
 		var fileSize int64
@@ -281,15 +281,15 @@ func (m MessageSender) ZipSender(fmt utils.Format, u tgbotapi.Update) error {
 		message, err := core.Bot.Send(msg)
 		if err == nil {
 			switch fmt { //为数据库添加数据
-			case utils.WebpFormat:
+			case lib.WebpFormat:
 				{
 					db.RecordStickerData(stickerSet, userID, message.Document.FileID, fileSize, "", 0, "", 0)
 				}
-			case utils.PngFormat:
+			case lib.PngFormat:
 				{
 					db.RecordStickerData(stickerSet, userID, "", 0, message.Document.FileID, fileSize, "", 0)
 				}
-			case utils.JpegFormat:
+			case lib.JpegFormat:
 				{
 					db.RecordStickerData(stickerSet, userID, "", 0, "", 0, message.Document.FileID, fileSize)
 				}
