@@ -1,11 +1,15 @@
 package task
 
-import "github.com/swim233/StickerDownloader/lib"
+import (
+	"context"
 
-type TaskManager struct {
-	Tasks []lib.Task
-}
+	"github.com/swim233/StickerDownloader/lib"
+)
 
-func (tm *TaskManager) PushTask(task lib.Task) {
-    
+func TaskManager(taskChan <-chan lib.Task) {
+	for {
+		task := <-taskChan
+		go TaskHandler(task, context.Background())
+        
+	}
 }
