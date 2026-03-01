@@ -14,7 +14,7 @@ type FormatConverter struct {
 }
 
 // 将 WebP 转换为 PNG
-func (f FormatConverter) ConvertWebPToPNG(src []byte) (dist []byte, err error) {
+func (f FormatConverter) WebpToPNG(src []byte) (dist []byte, err error) {
 	reader := bytes.NewReader(src)
 	img, _, err := image.Decode(reader)
 	if err != nil {
@@ -35,7 +35,7 @@ func (f FormatConverter) ConvertWebPToPNG(src []byte) (dist []byte, err error) {
 }
 
 // 将 WebP 转换为 JPEG
-func (f FormatConverter) ConvertWebPToJPEG(src []byte, quality int) (dist []byte, err error) {
+func (f FormatConverter) WebpToJPEG(src []byte, quality int) (dist []byte, err error) {
 	reader := bytes.NewReader(src)
 	img, _, err := image.Decode(reader)
 	if err != nil {

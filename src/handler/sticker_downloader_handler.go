@@ -56,7 +56,7 @@ func (s StickerDownloader) DownloadSetFile(sticker tgbotapi.Sticker) ([]byte, er
 }
 
 // 下载贴纸集
-func (s StickerDownloader) DownloadStickerSet(format lib.FileFormat, stickerSet tgbotapi.StickerSet, u tgbotapi.Update) ([]byte, string, int, error) {
+func (s StickerDownloader) DownloadStickerSet(format lib.TaskFileFormat, stickerSet tgbotapi.StickerSet, u tgbotapi.Update) ([]byte, string, int, error) {
 	stickerNum := len(stickerSet.Stickers)
 	var wg sync.WaitGroup
 	var name string
@@ -91,11 +91,11 @@ func (s StickerDownloader) DownloadStickerSet(format lib.FileFormat, stickerSet 
 				switch {
 				case format == lib.PngFormat:
 					fc := utils.FormatConverter{}
-					data, _ = fc.ConvertWebPToPNG(data)
+					data, _ = fc.WebpToPNG(data)
 					filePath = path.Join(name, strconv.Itoa(index)+".png")
 				case format == lib.JpegFormat:
 					fc := utils.FormatConverter{}
-					data, _ = fc.ConvertWebPToJPEG(data, core.BotConfig.WebPToJPEGQuality)
+					data, _ = fc.WebpToJPEG(data, core.BotConfig.WebPToJPEGQuality)
 					filePath = path.Join(name, strconv.Itoa(index)+".jpeg")
 				case format == lib.WebpFormat:
 					filePath = path.Join(name, strconv.Itoa(index)+".webp")
@@ -177,11 +177,11 @@ func (s StickerDownloader) HTTPDownloadStickerSet(fmt string, setName string) ([
 				switch fmt {
 				case "png":
 					fc := utils.FormatConverter{}
-					data, _ = fc.ConvertWebPToPNG(data)
+					data, _ = fc.WebpToPNG(data)
 					filePath = path.Join(name, strconv.Itoa(index)+".png")
 				case "jpeg":
 					fc := utils.FormatConverter{}
-					data, _ = fc.ConvertWebPToJPEG(data, core.BotConfig.WebPToJPEGQuality)
+					data, _ = fc.WebpToJPEG(data, core.BotConfig.WebPToJPEGQuality)
 					filePath = path.Join(name, strconv.Itoa(index)+".jpeg")
 				default:
 					filePath = path.Join(name, strconv.Itoa(index)+".webp")

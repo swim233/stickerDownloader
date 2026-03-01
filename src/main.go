@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	"regexp"
 	"time"
 
 	tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
@@ -12,6 +11,8 @@ import (
 	"github.com/swim233/StickerDownloader/handler"
 	"github.com/swim233/StickerDownloader/lib"
 	"github.com/swim233/StickerDownloader/logger"
+	"github.com/swim233/StickerDownloader/message"
+	"github.com/swim233/StickerDownloader/task"
 	"github.com/swim233/StickerDownloader/utils"
 )
 
@@ -22,6 +23,7 @@ var (
 )
 
 func main() {
+	logger.InitLogger()
 	logger.Info("版本号: %s", version)
 	logger.Info("提交哈希: %s", commitHash)
 	parse, err := time.Parse(time.RFC3339, buildTime)
@@ -40,37 +42,45 @@ func main() {
 		logger.Error("加载i18文件时出错 : %s", err.Error())
 		os.Exit(1)
 	}
+	logger.Info("starting taskmgr successful")
+	go task.TaskManager()
+	logger.Info("taskmgr start successful")
 
-	var stickerLinkRegex = regexp.MustCompile(`https://t.me/addstickers/([a-zA-Z0-9_]+)`)
+	// var stickerLinkRegex = regexp.MustCompile(`https://t.me/addstickers/([a-zA-Z0-9_]+)`)
+	// b.NewProcessor(func(u tgbotapi.Update) bool {
+	// 	if u.Message == nil {
+	// 		return false
+	// 	}
+	// 	if u.Message.Sticker != nil {
+	// 		// 如果是 sticker，直接传递 sticker 的 set name
+	// 		sticker, err := core.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: func(u tgbotapi.Update) string {
+	// 			return u.Message.Sticker.SetName
+	// 		}(u)})
+	// 		if err != nil {
+	// 			return false
+	// 		}
+	// 		// 支持下载单个贴纸的用true
+	// 		messageSender.ButtonMessageSender(u, sticker, true)
+	// 		return true
+	// 	}
+	// 	if u.Message.Text != "" && stickerLinkRegex.MatchString(u.Message.Text) {
+	// 		// 提取 sticker set name
+	// 		matches := stickerLinkRegex.FindStringSubmatch(u.Message.Text)
+	// 		if len(matches) > 1 {
+	// 			stickerSetName := matches[1] // 提取的 SetName
+	// 			sticker, err := core.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: stickerSetName})
+	// 			if err != nil {
+	// 				return false
+	// 			}
+	// 			messageSender.ButtonMessageSender(u, sticker, false)
+	// 			return true
+	// 		}
+	// 	}
+	// 	return false
+	// }, nil)
 	b.NewProcessor(func(u tgbotapi.Update) bool {
-		if u.Message == nil {
-			return false
-		}
-		if u.Message.Sticker != nil {
-			// 如果是 sticker，直接传递 sticker 的 set name
-			sticker, err := core.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: func(u tgbotapi.Update) string {
-				return u.Message.Sticker.SetName
-			}(u)})
-			if err != nil {
-				return false
-			}
-			// 支持下载单个贴纸的用true
-			messageSender.ButtonMessageSender(u, sticker, true)
-			return true
-		}
-		if u.Message.Text != "" && stickerLinkRegex.MatchString(u.Message.Text) {
-			// 提取 sticker set name
-			matches := stickerLinkRegex.FindStringSubmatch(u.Message.Text)
-			if len(matches) > 1 {
-				stickerSetName := matches[1] // 提取的 SetName
-				sticker, err := core.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: stickerSetName})
-				if err != nil {
-					return false
-				}
-				messageSender.ButtonMessageSender(u, sticker, false)
-				return true
-			}
-		}
+		message.GenerateNewTaskMessage(u.Message.Chat.ID, u.Message.MessageID)
+		// task.NewTask(u, lib.SingleDownload, lib.WebpFormat)
 		return false
 	}, nil)
 	b.NewPrivateCommandProcessor("count", utils.SendRuntimeStatusInfo)

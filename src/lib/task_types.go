@@ -1,24 +1,35 @@
 package lib
 
+import tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
+
 type FormatConverter interface {
 	WebpToPNG(src []byte) (dist []byte, err error)
 	WebpToJPEG(src []byte, quality int) (dist []byte, err error)
 }
 type Downloader interface {
-	DownloadSticker(target string) (data []byte, err error)
+	DownloadSingleSticker(update tgbotapi.Update) (data []byte, err error)
+	DownloadStickerSet(update tgbotapi.Update) (data []byte, err error)
 }
+
 type Task struct {
 	TaskID        string
 	TaskChatID    int64
-	TaskMessageID int64
+	TaskMessageID int
 	TaskType      TaskType
-	FileFormat    FileFormat
+	TaskUpdate    tgbotapi.Update
+	TargetFormat  TaskFileFormat
 	Converter     FormatConverter
 	Downloader    Downloader
+	StickerSet    tgbotapi.StickerSet
+}
+
+type CompletedTask struct {
+	Task
+	TaskData []byte
 }
 
 type TaskType string
-type FileFormat string
+type TaskFileFormat string
 
 const (
 	SingleDownload TaskType = "single"
@@ -26,9 +37,9 @@ const (
 )
 
 const (
-	JpegFormat FileFormat = "jpeg"
-	PngFormat  FileFormat = "png"
-	WebpFormat FileFormat = "webp"
+	JpegFormat TaskFileFormat = "jpeg"
+	PngFormat  TaskFileFormat = "png"
+	WebpFormat TaskFileFormat = "webp"
 )
 
 func (t TaskType) String() string {
@@ -42,7 +53,7 @@ func (t TaskType) String() string {
 	}
 
 }
-func (f FileFormat) String() string {
+func (f TaskFileFormat) String() string {
 	switch f {
 	case JpegFormat:
 		return "jpeg"

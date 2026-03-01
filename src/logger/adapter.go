@@ -6,7 +6,7 @@ import (
 )
 
 type TelegramBotApiLoggerAdapter struct {
-	logger   *Logger
+	logger   *BotLogger
 	logLevel int
 }
 
@@ -24,7 +24,7 @@ func (l *TelegramBotApiLoggerAdapter) Println(v ...interface{}) {
 	l.logger.log(l.logLevel, "%s", builder.String())
 }
 
-func (l *TelegramBotApiLoggerAdapter) SetLogger(logger *Logger) {
+func (l *TelegramBotApiLoggerAdapter) SetLogger(logger *BotLogger) {
 	l.logger = logger
 }
 

@@ -10,7 +10,7 @@ import (
 	"github.com/swim233/StickerDownloader/utils"
 )
 
-func GetCacheFileID(set tgbotapi.StickerSet, format lib.FileFormat) (fileID string, fileSize int64, stickerNum int, err error) {
+func GetCacheFileID(set tgbotapi.StickerSet, format lib.TaskFileFormat) (fileID string, fileSize int64, stickerNum int, err error) {
 	stickerData, err := db.GetStickerData(set.Name)
 	if err != nil {
 		return "", 0, 0, err

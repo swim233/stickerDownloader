@@ -14,4 +14,5 @@ type Translations struct {
 	Help                     string `json:"Help"`
 	Cancel                   string `json:"Cancel"`
 	SuccessChangeLanguage    string `json:"SuccessChangeLanguage"`
+	FailToDownload           string `json:"fail_to_download"`
 }

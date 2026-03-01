@@ -63,7 +63,7 @@ func (m MessageSender) ButtonMessageSender(u tgbotapi.Update, sticker tgbotapi.S
 }
 
 // 单个贴纸下载
-func (m MessageSender) ThisSender(format lib.FileFormat, u tgbotapi.Update) error {
+func (m MessageSender) ThisSender(format lib.TaskFileFormat, u tgbotapi.Update) error {
 	ChatID := u.CallbackQuery.Message.Chat.ID
 	UserID := u.CallbackQuery.Message.From.ID
 	go func(u tgbotapi.Update) error {
@@ -129,7 +129,7 @@ func (m MessageSender) ThisSender(format lib.FileFormat, u tgbotapi.Update) erro
 						logger.Error("下载文件时出错 ：%s", err.Error())
 					}
 					fc := utils.FormatConverter{}
-					jpeg, err := fc.ConvertWebPToJPEG(webp, core.BotConfig.WebPToJPEGQuality)
+					jpeg, err := fc.WebpToJPEG(webp, core.BotConfig.WebPToJPEGQuality)
 					if err != nil {
 						logger.Error("下载文件时出错 ：%s", err.Error())
 					}
@@ -139,7 +139,7 @@ func (m MessageSender) ThisSender(format lib.FileFormat, u tgbotapi.Update) erro
 						logger.Error("下载文件时出错 ：%s", err.Error())
 					}
 					fc := utils.FormatConverter{}
-					png, err := fc.ConvertWebPToPNG(webp)
+					png, err := fc.WebpToPNG(webp)
 					if err != nil {
 						logger.Error("下载文件时出错 ：%s", err.Error())
 					}
@@ -232,7 +232,7 @@ func (m MessageSender) ChangeUserLanguage(u tgbotapi.Update, lang string) error 
 }
 
 // 贴纸集下载
-func (m MessageSender) ZipSender(fmt lib.FileFormat, u tgbotapi.Update) error {
+func (m MessageSender) ZipSender(fmt lib.TaskFileFormat, u tgbotapi.Update) error {
 	go func(u tgbotapi.Update) error {
 		var requestFile tgbotapi.RequestFileData
 		var fileSize int64

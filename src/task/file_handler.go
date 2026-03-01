@@ -1,13 +1,13 @@
 package task
 
 import (
-	"fmt"
+	"regexp"
 
 	tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
 	"github.com/spf13/viper"
 	"github.com/swim233/StickerDownloader/config"
 	"github.com/swim233/StickerDownloader/core"
-	"github.com/swim233/StickerDownloader/utils"
+	"github.com/swim233/StickerDownloader/logger"
 )
 
 // 获取文件FileID
@@ -18,38 +18,44 @@ func getFileID(u tgbotapi.Update) string {
 
 // 获取贴纸集url
 func getSetUrl(sticker tgbotapi.Sticker) (url string, err error) {
-	fileID := sticker.FileID
-	FileURL, err := func(bot tgbotapi.BotAPI, fileID string) (string, error) {
-		file, err := bot.GetFile(tgbotapi.FileConfig{FileID: fileID})
-		if err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", bot.Token, file.FilePath), nil
-	}(*core.Bot, fileID)
-	if err != nil {
-		utils.RuntimeStatus.Errors++
-		return "", err
-	}
-	return FileURL, nil
+	return getUrl(sticker.FileID)
+
 }
 
 // 获取文件url
-func getUrl(u tgbotapi.Update) (url string, err error) {
-	fileID := getFileID(u)
-	var fileURL string
+func getUrl(fileID string) (url string, err error) {
 	var Err error
 	for i := 0; i < viper.GetInt("max_retry"); i++ {
 
 		file, err := core.Bot.GetFile(tgbotapi.FileConfig{FileID: fileID})
 		if err != nil {
-			//FIXME:need log warning
-
+			logger.Warn("error in getting file url: %s", err.Error())
+			Err = err
 			continue
 		} else {
-			fileURL = file.Link(config.BotToken)
-			return fileURL, nil
+			url = file.Link(config.BotToken)
+			return url, nil
 		}
 	}
 
 	return "", Err
+}
+
+// 获取贴纸集
+func getStickerSet(u tgbotapi.Update) string {
+	var stickerLinkRegex = regexp.MustCompile(`https://t.me/addstickers/([a-zA-Z0-9_]+)`)
+
+	if u.CallbackQuery != nil && u.CallbackQuery.Message.ReplyToMessage.Sticker != nil {
+		return u.CallbackQuery.Message.ReplyToMessage.Sticker.SetName
+	}
+
+	if u.CallbackQuery.Message.ReplyToMessage.Text != "" && stickerLinkRegex.MatchString(u.CallbackQuery.Message.ReplyToMessage.Text) {
+		// 提取 sticker set name
+		matches := stickerLinkRegex.FindStringSubmatch(u.CallbackQuery.Message.ReplyToMessage.Text)
+		if len(matches) > 1 {
+			stickerSetName := matches[1] // 提取的 SetName
+			return stickerSetName
+		}
+	}
+	return ""
 }

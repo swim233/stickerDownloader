@@ -1,176 +1,174 @@
 package logger
 
 import (
-	"fmt"
-	"io"
-	"log"
 	"os"
-	"path/filepath"
-	"strings"
-	"sync"
 	"time"
+
+	"github.com/natefinch/lumberjack"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
-const (
-	LevelDebug = iota
-	LevelInfo
-	LevelWarn
-	LevelError
-)
+var Logger *zap.Logger
+var Suger *zap.SugaredLogger
 
-type Logger struct {
-	logger   *log.Logger
-	logFile  *os.File
-	logLevel int
-	mutex    sync.Mutex
+type ZapConfig struct {
+	Prefix     string         `yaml:"prefix" mapstructure:"prefix"`
+	TimeFormat string         `yaml:"timeFormat" mapstructure:"timeFormat"`
+	Level      string         `yaml:"level" mapstructure:"level"`
+	Caller     bool           `yaml:"caller" mapstructure:"caller"`
+	StackTrace bool           `yaml:"stackTrace" mapstructure:"stackTrace"`
+	Writer     string         `yaml:"writer" mapstructure:"writer"`
+	Encode     string         `yaml:"encode" mapstructure:"encode"`
+	LogFile    *LogFileConfig `yaml:"logFile" mapstructure:"logFile"`
 }
 
-var (
-	instance *Logger
-	once     sync.Once
-)
-
-func GetInstance() *Logger {
-	once.Do(func() {
-		instance = &Logger{}
-		instance.initLogger()
-	})
-	return instance
+type LogFileConfig struct {
+	MaxSize  int      `yaml:"maxSize" mapstructure:"maxSize"`
+	BackUps  int      `yaml:"backups" mapstructure:"backups"`
+	Compress bool     `yaml:"compress" mapstructure:"compress"`
+	Output   []string `yaml:"output" mapstructure:"output"`
+	Errput   []string `yaml:"errput" mapstructure:"errput"`
 }
 
-func (l *Logger) initLogger() {
-	logDir := "logs"
-	if err := os.MkdirAll(logDir, os.ModePerm); err != nil {
-		log.Fatalf("Error creating logs directory: %v", err)
+func InitLogger() {
+	config := &ZapConfig{
+		Prefix:     "ZapLogTest",
+		TimeFormat: "2006/01/02 - 15:04:05",
+		Level:      "debug",
+		Caller:     true,
+		StackTrace: false,
+		Writer:     "both",
+		Encode:     "console",
+		LogFile: &LogFileConfig{
+			MaxSize:  20,
+			BackUps:  5,
+			Compress: true,
+			Output:   []string{"./log/output.log"},
+			Errput:   []string{},
+		},
+	}
+	// 构建编码器
+	encoder := zapEncoder(config)
+	// 构建日志级别
+	levelEnabler := func() zapcore.Level {
+		return zap.DebugLevel
+		// if lib.DebugMode {
+		// 	return zapcore.DebugLevel
+		// } else {
+		// 	return zapcore.InfoLevel
+		// }
+	}()
+	// 最后获得Core和Options
+	subCore, options := tee(config, encoder, levelEnabler)
+	// 创建Logger
+	logger := zap.New(subCore, options...)
+	Suger = logger.Sugar()
+	Logger = logger
+
+}
+
+func zapEncoder(config *ZapConfig) zapcore.Encoder {
+
+	encoderConfig := zapcore.EncoderConfig{
+		TimeKey:          "Time",
+		LevelKey:         "Level",
+		NameKey:          "Logger",
+		CallerKey:        "Caller",
+		MessageKey:       "Message",
+		StacktraceKey:    "StackTrace",
+		LineEnding:       zapcore.DefaultLineEnding,
+		FunctionKey:      zapcore.OmitKey,
+		ConsoleSeparator: "  ",
+	}
+	// 自定义时间格式
+	encoderConfig.EncodeTime = CustomTimeFormatEncoder
+	// 日志级别大写
+	encoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	// 秒级时间间隔
+	encoderConfig.EncodeDuration = zapcore.SecondsDurationEncoder
+	// 简短的调用者输出
+	encoderConfig.EncodeCaller = zapcore.ShortCallerEncoder
+	// 完整的序列化logger名称
+	encoderConfig.EncodeName = zapcore.FullNameEncoder
+	// 最终的日志编码 json或者console
+	switch config.Encode {
+	case "json":
+		{
+			return zapcore.NewJSONEncoder(encoderConfig)
+		}
+	case "console":
+		{
+			return zapcore.NewConsoleEncoder(encoderConfig)
+		}
+	}
+	// 默认console
+	return zapcore.NewConsoleEncoder(encoderConfig)
+}
+
+func tee(cfg *ZapConfig, encoder zapcore.Encoder, levelEnabler zapcore.LevelEnabler) (core zapcore.Core, options []zap.Option) {
+	sink := zapWriteSyncer(cfg)
+	return zapcore.NewCore(encoder, sink, levelEnabler), buildOptions(cfg, levelEnabler)
+}
+
+// 构建Option
+func buildOptions(cfg *ZapConfig, levelEnabler zapcore.LevelEnabler) (options []zap.Option) {
+	if cfg.Caller {
+		options = append(options, zap.AddCaller())
 	}
 
-	logFilePath := filepath.Join(logDir, time.Now().Format("2006-01-02")+".log")
-	file, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
-	if err != nil {
-		log.Fatalf("Error opening log file: %v", err)
+	if cfg.StackTrace {
+		options = append(options, zap.AddStacktrace(levelEnabler))
 	}
-
-	terminalWriter := &colorWriter{writer: os.Stdout}
-	fileWriter := &colorWriter{writer: file, noColor: true}
-
-	multiWriter := io.MultiWriter(terminalWriter, fileWriter)
-	l.logger = log.New(multiWriter, "", log.LstdFlags|log.Lshortfile)
-	l.logFile = file
-	l.logLevel = LevelInfo
+	return
 }
 
-func (l *Logger) log(level int, format string, v ...interface{}) {
-	if level < l.logLevel {
-		return
-	}
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
-
-	colorStart := GetColorStr(level)
-	levelStr := GetLevelStr(level)
-	colorEnd := "\033[0m"
-
-	msg := fmt.Sprintf(format, v...)
-	logMsg := fmt.Sprintf("%s %s", levelStr, msg)
-
-	l.logger.Output(3, fmt.Sprintf("%s%s%s\n", colorStart, logMsg, colorEnd))
+// CustomTimeFormatEncoder formats the time for zap logs using the config's TimeFormat.
+func CustomTimeFormatEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
+	enc.AppendString("[Zap]" + " " + t.Format("2006/01/02 - 15:04:05"))
 }
 
-func GetLevelStr(level int) string {
-	switch level {
-	case LevelDebug:
-		return "[DEBUG]"
-	case LevelInfo:
-		return "[INFO]"
-	case LevelWarn:
-		return "[WARN]"
-	case LevelError:
-		return "[ERROR]"
-	default:
-		return "[INFO]"
+func zapWriteSyncer(cfg *ZapConfig) zapcore.WriteSyncer {
+	syncers := make([]zapcore.WriteSyncer, 0, 2)
+
+	syncers = append(syncers, zapcore.AddSync(os.Stdout))
+
+	for _, path := range cfg.LogFile.Output {
+		logger := &lumberjack.Logger{
+			Filename:   path,                 //文件路径
+			MaxSize:    cfg.LogFile.MaxSize,  //分割文件的大小
+			MaxBackups: cfg.LogFile.BackUps,  //备份次数
+			Compress:   cfg.LogFile.Compress, // 是否压缩
+			LocalTime:  true,                 //使用本地时间
+		}
+		syncers = append(syncers, zapcore.Lock(zapcore.AddSync(logger)))
+		// }
 	}
+	return zap.CombineWriteSyncers(syncers...)
 }
 
-func GetColorStr(level int) string {
-	switch level {
-	case LevelDebug:
-		return "\033[32m"
-	case LevelInfo:
-		return "\033[34m"
-	case LevelWarn:
-		return "\033[33m"
-	case LevelError:
-		return "\033[31m"
-	default:
-		return "\033[37m"
-	}
+type ZapBotLogger struct{}
+
+func (l *ZapBotLogger) Println(v ...any) {
+	Suger.Info(v...)
 }
 
-func Debug(format string, v ...interface{}) {
-	GetInstance().log(LevelDebug, format, v...)
+func (l *ZapBotLogger) Printf(format string, v ...any) {
+	Suger.Infof(format, v...)
 }
 
 func Info(format string, v ...interface{}) {
-	GetInstance().log(LevelInfo, format, v...)
+	Suger.Infof(format, v...)
 }
 
 func Warn(format string, v ...interface{}) {
-	GetInstance().log(LevelWarn, format, v...)
+	Suger.Warnf(format, v...)
 }
 
 func Error(format string, v ...interface{}) {
-	GetInstance().log(LevelError, format, v...)
+	Suger.Errorf(format, v...)
 }
 
-func SetLogLevel(level int) {
-	GetInstance().logLevel = level
-}
-
-func ParseLogLevel(levelStr string) int {
-	if strings.EqualFold("DEBUG", levelStr) {
-		return LevelDebug
-	}
-	if strings.EqualFold("INFO", levelStr) {
-		return LevelInfo
-	}
-	if strings.EqualFold("WARN", levelStr) {
-		return LevelWarn
-	}
-	if strings.EqualFold("ERROR", levelStr) {
-		return LevelError
-	}
-	return LevelInfo
-}
-
-func Close() {
-	if instance != nil && instance.logFile != nil {
-		instance.logFile.Close()
-	}
-}
-
-type colorWriter struct {
-	writer  io.Writer
-	noColor bool
-}
-
-func (cw *colorWriter) Write(p []byte) (n int, err error) {
-	if cw.noColor {
-		p = stripColors(p)
-	}
-	return cw.writer.Write(p)
-}
-
-func stripColors(p []byte) []byte {
-	var result []byte
-	inColorCode := false
-	for _, b := range p {
-		if b == '\033' {
-			inColorCode = true
-		} else if b == 'm' && inColorCode {
-			inColorCode = false
-		} else if !inColorCode {
-			result = append(result, b)
-		}
-	}
-	return result
+func Debug(format string, v ...interface{}) {
+	Suger.Debugf(format, v...)
 }
