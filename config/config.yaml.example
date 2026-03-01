@@ -1,0 +1,5 @@
+# Bot token
+bot_token: YOUR_BOT_TOKEN
+
+# Max retry times
+bot_login_max_retry: 3
