@@ -79,14 +79,17 @@ func main() {
 	// 	return false
 	// }, nil)
 	b.NewProcessor(func(u tgbotapi.Update) bool {
-		message.GenerateNewTaskMessage(u.Message.Chat.ID, u.Message.MessageID)
-		// task.NewTask(u, lib.SingleDownload, lib.WebpFormat)
+		message.GenerateNewTaskMessage(u.Message.From.ID, u.Message.Chat.ID, u.Message.MessageID)
 		return false
 	}, nil)
 	b.NewPrivateCommandProcessor("count", utils.SendRuntimeStatusInfo)
 	b.NewPrivateCommandProcessor("help", messageSender.HelpMessage)
 	b.NewPrivateCommandProcessor("start", messageSender.StartMessage)
 	b.NewPrivateCommandProcessor("lang", messageSender.LanguageChose)
+	b.NewCallBackProcessor(lib.SingleDownload.String(), func(update tgbotapi.Update) error {
+		task.NewTask(update, lib.SingleDownload, lib.WebpFormat)
+		return nil
+	})
 	b.NewCallBackProcessor("this", messageSender.ThisFormatChose)
 	b.NewCallBackProcessor("zip", messageSender.ZipFormatChose)
 	b.NewCallBackProcessor("cancel", messageSender.CancelDownload)
