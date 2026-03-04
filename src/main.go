@@ -13,5 +13,6 @@ func main() {
 	core.InitBot()
 	b := core.Bot.AddHandle()
 	handler.MessageWithStickerHandler(b)
+	handler.SingleCallbackQueryHandler(b)
 	b.Run()
 }

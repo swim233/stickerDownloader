@@ -16,6 +16,12 @@ func SendDownloadMethodSelectMessage(u tgbotapi.Update) {
 	core.Bot.Send(msg)
 }
 
+func SendDownloadStartMessage(u tgbotapi.Update) {
+
+	// msg := tgbotapi.NewMessage(u.Message.Chat.ID, "downloading sticker")
+
+}
+
 func makeButtonMarkUp() tgbotapi.InlineKeyboardMarkup {
 	singleButton := tgbotapi.NewInlineKeyboardButtonData("single", "single")
 	setButton := tgbotapi.NewInlineKeyboardButtonData("set", "set")
