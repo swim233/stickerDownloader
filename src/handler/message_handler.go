@@ -8,7 +8,7 @@ import (
 	"github.com/swim233/stickerDownloader/message"
 )
 
-func MessageWithStickerHandler(b *tgbotapi.Bot) {
+func AddMessageWithStickerHandler(b *tgbotapi.Bot) {
 
 	b.NewProcessor(func(u tgbotapi.Update) bool {
 

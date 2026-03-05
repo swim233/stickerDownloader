@@ -12,7 +12,7 @@ func main() {
 	config.InitConfig()
 	core.InitBot()
 	b := core.Bot.AddHandle()
-	handler.MessageWithStickerHandler(b)
-	handler.SingleCallbackQueryHandler(b)
+	handler.AddMessageWithStickerHandler(b)
+	handler.AddSingleCallbackQueryHandler(b)
 	b.Run()
 }
