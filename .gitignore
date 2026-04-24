@@ -1,4 +1,6 @@
 .env
+config.yaml
 logs/
 bin/
 data.db
+log/

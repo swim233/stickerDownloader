@@ -9,7 +9,7 @@ import (
 
 	"github.com/glebarez/sqlite"
 	tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
-	"github.com/swim233/StickerDownloader/utils/hashCalculator"
+	"github.com/swim233/StickerDownloader/utils"
 	"gorm.io/gorm"
 )
 
@@ -88,10 +88,10 @@ func InitUserData(u tgbotapi.Update) error {
 
 // 记录用户数据
 func RecordUserData(u tgbotapi.Update, fileSize int64, fileCount int) {
-	user := u.CallbackQuery.From
-	if user == nil {
+	if u.CallbackQuery == nil || u.CallbackQuery.From == nil {
 		return
 	}
+	user := u.CallbackQuery.From
 	newUser := UserData{}
 
 	err := DB.Where("user_id = ?", user.ID).First(&newUser).Error
@@ -120,7 +120,6 @@ func RecordUserData(u tgbotapi.Update, fileSize int64, fileCount int) {
 		newUser.LastName = user.LastName
 		newUser.UserName = user.UserName
 		newUser.RecentDownloadTime = time.Now().Format(time.RFC3339)
-		newUser.UserLanguage = "zh"
 		err := DB.Where("user_id = ?", user.ID).Save(&newUser).Error
 		if err != nil {
 			DB.Logger.Error(context.Background(), err.Error())
@@ -136,7 +135,7 @@ func RecordStickerData(set tgbotapi.StickerSet, UserID int64, WebPFileID string,
 	setName := set.Name
 	title := set.Title
 	StickerNum := len(set.Stickers)
-	SetHash := hashCalculator.CalculateStickerSet(set)
+	SetHash := utils.CalculateStickerSet(set)
 	err := DB.Where("sticker_name = ?", setName).First(&newStickerSetData).Error
 	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
 		err := DB.Create(StickerData{
@@ -178,8 +177,8 @@ func RecordStickerData(set tgbotapi.StickerSet, UserID int64, WebPFileID string,
 			newStickerSetData.JPEGFileID = JPEGFileID
 			newStickerSetData.JPEGFileSize = JPEGFileSize
 		}
-		newStickerSetData.SetHash = hashCalculator.CalculateStickerSet(set)
-		newStickerSetData.StickerNum += StickerNum
+		newStickerSetData.SetHash = utils.CalculateStickerSet(set)
+		newStickerSetData.StickerNum = StickerNum
 		err := DB.Where("sticker_name = ?", setName).Save(&newStickerSetData).Error
 		if err != nil {
 			DB.Logger.Error(context.Background(), err.Error())

@@ -2,15 +2,21 @@ package main
 
 import (
 	"os"
-	"regexp"
+	"os/exec"
+	"strings"
 	"time"
 
 	tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
+	"github.com/swim233/StickerDownloader/api"
+	"github.com/swim233/StickerDownloader/config"
+	"github.com/swim233/StickerDownloader/core"
+	"github.com/swim233/StickerDownloader/db"
+	"github.com/swim233/StickerDownloader/handler"
+	"github.com/swim233/StickerDownloader/lib"
+	"github.com/swim233/StickerDownloader/logger"
+	"github.com/swim233/StickerDownloader/message"
+	"github.com/swim233/StickerDownloader/task"
 	"github.com/swim233/StickerDownloader/utils"
-	"github.com/swim233/StickerDownloader/utils/db"
-	"github.com/swim233/StickerDownloader/utils/handler"
-	httpserver "github.com/swim233/StickerDownloader/utils/httpServer"
-	"github.com/swim233/StickerDownloader/utils/logger"
 )
 
 var (
@@ -20,96 +26,122 @@ var (
 )
 
 func main() {
-	logger.Info("版本号: %s", version)
-	logger.Info("提交哈希: %s", commitHash)
-	parse, err := time.Parse(time.RFC3339, buildTime)
-	if err != nil {
-		logger.Info("构建时间: %s", buildTime)
-	} else {
-		logger.Info("构建时间: %s", parse.Format("2006-01-02 15:04:05"))
-	}
-	db.InitDB()                              //初始化数据库
-	utils.InitBot()                          //初始化bot配置
-	b := utils.Bot.AddHandle()               //注册handler
-	messageSender := handler.MessageSender{} //实例化handler
-	go httpserver.StartHTTPServer()          //开启http服务器
-	err = handler.LoadTranslations()         //加载i18n文件
-	if err != nil {
-		logger.Error("加载i18文件时出错 : %s", err.Error())
+	// 1. Initialize logger
+	logger.InitLogger()
+	logBuildInfo()
+
+	// 2. Load configuration
+	config.InitConfig()
+	logger.SetLogLevel(config.LogLevel)
+
+	// 3. Initialize database
+	db.InitDB()
+
+	// 4. Initialize bot
+	core.InitBot()
+	b := core.Bot.AddHandle()
+
+	// 5. Initialize downloader pool
+	handler.InitDownloaderPool()
+
+	// 6. Start HTTP server
+	go api.StartHTTPServer()
+
+	// 7. Load translations
+	if err := handler.LoadTranslations(); err != nil {
+		logger.Error("加载 i18n 文件出错: %s", err)
 		os.Exit(1)
 	}
 
-	var stickerLinkRegex = regexp.MustCompile(`https://t.me/addstickers/([a-zA-Z0-9_]+)`)
+	// 8. Start task manager
+	go task.TaskManager()
+	logger.Info("任务管理器启动成功")
+
+	// 9. Register handlers
+	ms := handler.MessageSender{}
+	registerHandlers(b, ms)
+
+	// 10. Start bot
+	utils.RuntimeStatus.StartTime = time.Now()
+	b.Run()
+}
+
+func logBuildInfo() {
+	// Fallback: read from git if ldflags were not set
+	if version == "" {
+		version = gitOutput("describe", "--tags", "--abbrev=0", "--always")
+	}
+	if commitHash == "" {
+		commitHash = gitOutput("rev-parse", "--short", "HEAD")
+	}
+	if buildTime == "" {
+		buildTime = time.Now().Format(time.RFC3339)
+	}
+
+	logger.Info("版本号: %s", version)
+	logger.Info("提交哈希: %s", commitHash)
+	if t, err := time.Parse(time.RFC3339, buildTime); err == nil {
+		logger.Info("构建时间: %s", t.Format("2006-01-02 15:04:05"))
+	} else {
+		logger.Info("构建时间: %s", buildTime)
+	}
+}
+
+func gitOutput(args ...string) string {
+	out, err := exec.Command("git", args...).Output()
+	if err != nil {
+		return "unknown"
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func registerHandlers(b *tgbotapi.Bot, ms handler.MessageSender) {
+	// Message processor: generate task message for incoming stickers
 	b.NewProcessor(func(u tgbotapi.Update) bool {
-		if u.Message == nil {
+		if u.Message == nil || u.Message.From == nil {
 			return false
 		}
-		if u.Message.Sticker != nil {
-			// 如果是 sticker，直接传递 sticker 的 set name
-			sticker, err := utils.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: func(u tgbotapi.Update) string {
-				return u.Message.Sticker.SetName
-			}(u)})
-			if err != nil {
-				return false
-			}
-			// 支持下载单个贴纸的用true
-			messageSender.ButtonMessageSender(u, sticker, true)
-			return true
-		}
-		if u.Message.Text != "" && stickerLinkRegex.MatchString(u.Message.Text) {
-			// 提取 sticker set name
-			matches := stickerLinkRegex.FindStringSubmatch(u.Message.Text)
-			if len(matches) > 1 {
-				stickerSetName := matches[1] // 提取的 SetName
-				sticker, err := utils.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: stickerSetName})
-				if err != nil {
-					return false
-				}
-				messageSender.ButtonMessageSender(u, sticker, false)
-				return true
-			}
-		}
+		message.GenerateNewTaskMessage(u.Message.From.ID, u.Message.Chat.ID, u.Message.MessageID)
 		return false
 	}, nil)
-	b.NewPrivateCommandProcessor("count", messageSender.CountSender)
-	b.NewPrivateCommandProcessor("help", messageSender.HelpMessage)
-	b.NewPrivateCommandProcessor("start", messageSender.StartMessage)
-	b.NewPrivateCommandProcessor("lang", messageSender.LanguageChose)
-	b.NewCallBackProcessor("this", messageSender.ThisFormatChose)
-	b.NewCallBackProcessor("zip", messageSender.ZipFormatChose)
-	b.NewCallBackProcessor("cancel", messageSender.CancelDownload)
-	b.NewCallBackProcessor("webp", func(u tgbotapi.Update) error {
-		return messageSender.ThisSender(utils.WebpFormat, u)
 
-	})
-	b.NewCallBackProcessor("png", func(u tgbotapi.Update) error {
-		return messageSender.ThisSender(utils.PngFormat, u)
+	// Private commands
+	b.NewPrivateCommandProcessor("count", utils.SendRuntimeStatusInfo)
+	b.NewPrivateCommandProcessor("help", ms.HelpMessage)
+	b.NewPrivateCommandProcessor("start", ms.StartMessage)
+	b.NewPrivateCommandProcessor("lang", ms.LanguageChose)
 
-	})
-	b.NewCallBackProcessor("jpeg", func(u tgbotapi.Update) error {
-		return messageSender.ThisSender(utils.JpegFormat, u)
+	// Single sticker download → show format chooser first
+	b.NewCallBackProcessor(lib.SingleDownload.String(), ms.ThisFormatChose)
 
-	})
-	b.NewCallBackProcessor("zip_webp", func(u tgbotapi.Update) error {
-		return messageSender.ZipSender(utils.WebpFormat, u)
+	// Format choosers
+	b.NewCallBackProcessor("this", ms.ThisFormatChose)
+	b.NewCallBackProcessor("zip", ms.ZipFormatChose)
+	b.NewCallBackProcessor(lib.SetDownload.String(), ms.ZipFormatChose) // "set" button from GenerateNewTaskMessage
+	b.NewCallBackProcessor("cancel", ms.CancelDownload)
 
-	})
-	b.NewCallBackProcessor("zip_png", func(u tgbotapi.Update) error {
-		return messageSender.ZipSender(utils.PngFormat, u)
+	// Single sticker format callbacks
+	formats := map[string]lib.TaskFileFormat{
+		"webp": lib.WebpFormat,
+		"png":  lib.PngFormat,
+		"jpeg": lib.JpegFormat,
+	}
+	for key, fmt := range formats {
+		fmt := fmt // capture
+		b.NewCallBackProcessor(key, func(u tgbotapi.Update) error {
+			return ms.ThisSender(fmt, u)
+		})
+		b.NewCallBackProcessor("zip_"+key, func(u tgbotapi.Update) error {
+			return ms.ZipSender(fmt, u)
+		})
+	}
 
-	})
-	b.NewCallBackProcessor("zip_jpeg", func(u tgbotapi.Update) error {
-		return messageSender.ZipSender(utils.JpegFormat, u)
-	})
-	b.NewCallBackProcessor("lang_zh", func(u tgbotapi.Update) error {
-		return messageSender.ChangeUserLanguage(u, "zh")
-	})
-	b.NewCallBackProcessor("lang_en", func(u tgbotapi.Update) error {
-		return messageSender.ChangeUserLanguage(u, "en")
-	})
-	b.NewCallBackProcessor("lang_jp", func(u tgbotapi.Update) error {
-		return messageSender.ChangeUserLanguage(u, "jp")
-	})
-	handler.StartTime = time.Now()
-	b.Run()
+	// Language callbacks
+	languages := []string{"zh", "en", "jp"}
+	for _, lang := range languages {
+		lang := lang // capture
+		b.NewCallBackProcessor("lang_"+lang, func(u tgbotapi.Update) error {
+			return ms.ChangeUserLanguage(u, lang)
+		})
+	}
 }
