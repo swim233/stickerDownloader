@@ -233,13 +233,49 @@ func (m MessageSender) ChangeUserLanguage(u tgbotapi.Update, lang string) error 
 
 // ZipSender downloads a full sticker pack as a zip file.
 func (m MessageSender) ZipSender(format lib.TaskFileFormat, u tgbotapi.Update) error {
+	if u.CallbackQuery == nil || u.CallbackQuery.Message == nil || u.CallbackQuery.Message.Chat == nil {
+		logger.Warn("无法下载贴纸包：回调消息上下文不完整")
+		utils.RuntimeStatus.Errors.Add(1)
+		return nil
+	}
+
+	callback := u.CallbackQuery
+	callbackMsg := callback.Message
+	chatID := callbackMsg.Chat.ID
+	userID := chatID
+	if callback.From != nil {
+		userID = callback.From.ID
+	}
+	if callbackMsg.ReplyToMessage == nil {
+		logger.Warn("无法下载贴纸包：原始消息上下文已失效 (chat_id=%d, message_id=%d, user_id=%d)", chatID, callbackMsg.MessageID, userID)
+		utils.RuntimeStatus.Errors.Add(1)
+		if _, err := callback.Answer(true, "操作已失效，请重新发送贴纸或贴纸包链接。\nThis action has expired. Please send the sticker or sticker pack link again."); err != nil {
+			logger.Warn("响应失效回调出错: %s", err)
+		}
+		return nil
+	}
+
+	replyMsg := callbackMsg.ReplyToMessage
+	replyMsgID := replyMsg.MessageID
+
 	go func() {
-		chatID := u.CallbackQuery.Message.Chat.ID
-		userID := u.CallbackQuery.Message.ReplyToMessage.From.ID
+		defer func() {
+			if r := recover(); r != nil {
+				logger.Error("下载贴纸包 panic 恢复: %v", r)
+				utils.RuntimeStatus.Errors.Add(1)
+			}
+		}()
 
-		u.CallbackQuery.Answer(false, tr(userID).DownloadingStickerSet)
+		callback.Answer(false, tr(userID).DownloadingStickerSet)
 
-		stickerSet, err := core.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: GetStickerSetName(u)})
+		stickerSetName := GetStickerSetName(u)
+		if stickerSetName == "" {
+			logger.Warn("无法下载贴纸包：原始消息中没有贴纸包信息 (chat_id=%d, message_id=%d, user_id=%d)", chatID, callbackMsg.MessageID, userID)
+			utils.RuntimeStatus.Errors.Add(1)
+			return
+		}
+
+		stickerSet, err := core.Bot.GetStickerSet(tgbotapi.GetStickerSetConfig{Name: stickerSetName})
 		if err != nil {
 			logger.Error("获取贴纸集出错: %s", err)
 			return
@@ -292,7 +328,7 @@ func (m MessageSender) ZipSender(format lib.TaskFileFormat, u tgbotapi.Update) e
 			stickerNum = num
 			if fileSize == 0 {
 				msg := tgbotapi.NewMessage(chatID, tr(userID).StickerSetIsNull)
-				msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
+				msg.ReplyToMessageID = replyMsgID
 				core.Bot.Send(msg)
 				u.CallbackQuery.Delete()
 				return
@@ -303,7 +339,7 @@ func (m MessageSender) ZipSender(format lib.TaskFileFormat, u tgbotapi.Update) e
 		db.RecordUserData(u, fileSize, stickerNum)
 
 		msg := tgbotapi.NewDocument(chatID, requestFile)
-		msg.ReplyToMessageID = u.CallbackQuery.Message.ReplyToMessage.MessageID
+		msg.ReplyToMessageID = replyMsgID
 		utils.RuntimeStatus.PackDownload.Add(1)
 
 		message, err := core.Bot.Send(msg)
