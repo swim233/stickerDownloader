@@ -44,15 +44,19 @@ type StickerData struct {
 var DB *gorm.DB
 
 // 初始化数据库
-func InitDB() {
-	os.MkdirAll("db", 0700)
-	db, err := gorm.Open(sqlite.Open("db/data.db"), &gorm.Config{})
-	if err != nil {
-		fmt.Printf("数据库初始化失败: %v\n", err)
-		os.Exit(1)
+func InitDB() error {
+	if err := os.MkdirAll("db", 0700); err != nil {
+		return fmt.Errorf("创建数据库目录: %w", err)
 	}
-	DB = db
-	DB.AutoMigrate(&UserData{}, &StickerData{})
+	database, err := gorm.Open(sqlite.Open("db/data.db"), &gorm.Config{})
+	if err != nil {
+		return fmt.Errorf("数据库初始化: %w", err)
+	}
+	DB = database
+	if err := DB.AutoMigrate(&UserData{}, &StickerData{}); err != nil {
+		return fmt.Errorf("数据库迁移: %w", err)
+	}
+	return nil
 }
 
 // 初始化用户数据

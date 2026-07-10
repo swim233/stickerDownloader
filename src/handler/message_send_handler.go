@@ -13,6 +13,7 @@ import (
 	db "github.com/swim233/StickerDownloader/db"
 	"github.com/swim233/StickerDownloader/lib"
 	logger "github.com/swim233/StickerDownloader/logger"
+	"github.com/swim233/StickerDownloader/runtimeguard"
 	utils "github.com/swim233/StickerDownloader/utils"
 )
 
@@ -37,7 +38,7 @@ func InitDownloaderPool() {
 	}
 }
 
-func (p *BlockingPool) Get() *StickerDownloader { return <-p.pool }
+func (p *BlockingPool) Get() *StickerDownloader  { return <-p.pool }
 func (p *BlockingPool) Put(d *StickerDownloader) { p.pool <- d }
 
 // tr is a helper to get translated text for a user.
@@ -67,18 +68,7 @@ func (m MessageSender) ThisSender(format lib.TaskFileFormat, u tgbotapi.Update) 
 	chatID := u.CallbackQuery.Message.Chat.ID
 	userID := u.CallbackQuery.From.ID
 
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				logger.Error("panic 恢复: %v", r)
-				update, err := json.MarshalIndent(u, "", "  ")
-				if err == nil {
-					logger.Error("update: %s", string(update))
-				}
-				utils.RuntimeStatus.Errors.Add(1)
-			}
-		}()
-
+	runtimeguard.Go("single-sticker-download", runtimeguard.Task, func() {
 		if userID != 0 {
 			u.CallbackQuery.Answer(false, tr(userID).DownloadingSingleSticker)
 		}
@@ -133,7 +123,7 @@ func (m MessageSender) ThisSender(format lib.TaskFileFormat, u tgbotapi.Update) 
 			core.Bot.Send(msg)
 		}
 		u.CallbackQuery.Delete()
-	}()
+	})
 	return nil
 }
 
@@ -258,14 +248,7 @@ func (m MessageSender) ZipSender(format lib.TaskFileFormat, u tgbotapi.Update) e
 	replyMsg := callbackMsg.ReplyToMessage
 	replyMsgID := replyMsg.MessageID
 
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				logger.Error("下载贴纸包 panic 恢复: %v", r)
-				utils.RuntimeStatus.Errors.Add(1)
-			}
-		}()
-
+	runtimeguard.Go("sticker-pack-download", runtimeguard.Task, func() {
 		callback.Answer(false, tr(userID).DownloadingStickerSet)
 
 		stickerSetName := GetStickerSetName(u)
@@ -351,7 +334,7 @@ func (m MessageSender) ZipSender(format lib.TaskFileFormat, u tgbotapi.Update) e
 		}
 
 		u.CallbackQuery.Delete()
-	}()
+	})
 	return nil
 }
 

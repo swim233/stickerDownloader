@@ -21,12 +21,26 @@ import (
 	"github.com/swim233/StickerDownloader/core"
 	"github.com/swim233/StickerDownloader/lib"
 	"github.com/swim233/StickerDownloader/logger"
+	"github.com/swim233/StickerDownloader/runtimeguard"
 	"github.com/swim233/StickerDownloader/utils"
 )
 
 // StickerDownloader handles downloading sticker files from Telegram.
 type StickerDownloader struct {
 	ID int
+}
+
+var (
+	fileDownloadSlots     chan struct{}
+	fileDownloadSlotsOnce sync.Once
+)
+
+func acquireFileDownloadSlot() func() {
+	fileDownloadSlotsOnce.Do(func() {
+		fileDownloadSlots = make(chan struct{}, config.MaxConcurrency)
+	})
+	fileDownloadSlots <- struct{}{}
+	return func() { <-fileDownloadSlots }
 }
 
 // DownloadFile downloads a single sticker file from a callback update.
@@ -42,6 +56,9 @@ func (s StickerDownloader) DownloadSetFile(sticker tgbotapi.Sticker) ([]byte, er
 
 // downloadByFileID is the shared implementation for downloading a file by its ID.
 func downloadByFileID(fileID string) ([]byte, error) {
+	releaseSlot := acquireFileDownloadSlot()
+	defer releaseSlot()
+
 	var lastErr error
 	for i := 0; i < config.MaxRetry; i++ {
 		file, err := core.Bot.GetFile(tgbotapi.FileConfig{FileID: fileID})
@@ -51,6 +68,7 @@ func downloadByFileID(fileID string) ([]byte, error) {
 			continue
 		}
 		fileURL := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", core.Bot.Token, file.FilePath)
+		logger.Debug("开始下载 Telegram 文件: %s", filepath.Base(file.FilePath))
 
 		resp, err := http.Get(fileURL)
 		if err != nil {
@@ -58,18 +76,23 @@ func downloadByFileID(fileID string) ([]byte, error) {
 			logger.Warn("下载文件失败 (重试 %d/%d): %s", i+1, config.MaxRetry, err)
 			continue
 		}
-		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
+			_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10))
+			_ = resp.Body.Close()
 			lastErr = fmt.Errorf("下载文件返回非 200 状态码: %d", resp.StatusCode)
 			logger.Warn("下载返回状态码 %d (重试 %d/%d)", resp.StatusCode, i+1, config.MaxRetry)
 			continue
 		}
 
-		data, err := io.ReadAll(resp.Body)
-		if err != nil {
-			lastErr = fmt.Errorf("读取响应失败: %w", err)
+		data, readErr := io.ReadAll(resp.Body)
+		closeErr := resp.Body.Close()
+		if readErr != nil {
+			lastErr = fmt.Errorf("读取响应失败: %w", readErr)
 			continue
+		}
+		if closeErr != nil {
+			logger.Debug("关闭下载响应失败: %s", closeErr)
 		}
 		return data, nil
 	}
@@ -99,7 +122,7 @@ func downloadAndPackStickers(format string, stickerSet tgbotapi.StickerSet, onPr
 	var tickerDone chan struct{}
 	if onProgress != nil {
 		tickerDone = make(chan struct{})
-		go func() {
+		runtimeguard.Go("sticker-progress", runtimeguard.Task, func() {
 			ticker := time.NewTicker(3 * time.Second)
 			defer ticker.Stop()
 			for {
@@ -110,13 +133,13 @@ func downloadAndPackStickers(format string, stickerSet tgbotapi.StickerSet, onPr
 					return
 				}
 			}
-		}()
+		})
 	}
 
 	dl := StickerDownloader{}
 	wg.Add(stickerNum)
 	for index, sticker := range stickerSet.Stickers {
-		go func(index int, sticker tgbotapi.Sticker) {
+		runtimeguard.Go("sticker-file-download", runtimeguard.Task, func() {
 			defer wg.Done()
 
 			data, err := dl.DownloadSetFile(sticker)
@@ -143,7 +166,7 @@ func downloadAndPackStickers(format string, stickerSet tgbotapi.StickerSet, onPr
 				mu.Unlock()
 			}
 			completed.Add(1)
-		}(index, sticker)
+		})
 	}
 	wg.Wait()
 
@@ -225,10 +248,10 @@ func (s StickerDownloader) HTTPDownloadStickerSet(format string, setName string)
 	return zipData, nil
 }
 
+var stickerLinkRegex = regexp.MustCompile(`https?://t\.me/addstickers/([a-zA-Z0-9_]+)`)
+
 // GetStickerSetName extracts the sticker set name from an update (callback query).
 func GetStickerSetName(u tgbotapi.Update) string {
-	var stickerLinkRegex = regexp.MustCompile(`https://t.me/addstickers/([a-zA-Z0-9_]+)`)
-
 	if u.CallbackQuery == nil || u.CallbackQuery.Message == nil || u.CallbackQuery.Message.ReplyToMessage == nil {
 		return ""
 	}

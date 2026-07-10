@@ -1,0 +1,41 @@
+# Telegram Bot 配置 / Telegram Bot Configuration
+telegram:
+  token: "YOUR_BOT_TOKEN"
+  http_token: "YOUR_BOT_TOKEN"
+  # Owner 的私聊或群组 Chat ID；设为 0 时禁用运维通知
+  owner_chat_id: 0
+  # Telegram Bot API endpoint；通常无需修改
+  api_endpoint: "https://api.telegram.org/bot%s/%s"
+  debug: false
+
+log:
+  level: "INFO"
+  api_level: "INFO"
+
+image:
+  jpeg_quality: 100
+
+server:
+  enabled: false
+  port: ":8070"
+
+download:
+  max_concurrency: 30
+  max_retry: 3
+
+notification:
+  request_timeout: 8s
+  panic_dedup_window: 5m
+  max_stack_bytes: 8192
+
+supervisor:
+  shutdown_timeout: 10s
+  restart:
+    initial_delay: 1s
+    max_delay: 1m
+    multiplier: 2
+    jitter: 0.2
+    stable_after: 10m
+    max_restarts: 5
+    window: 5m
+    cooldown: 15m

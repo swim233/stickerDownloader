@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -16,14 +17,16 @@ var (
 )
 
 // InitBot creates and configures the Telegram bot instances.
-func InitBot() {
+func InitBot() error {
 	var err error
+	newBot := func(token string) (*tgbotapi.BotAPI, error) {
+		return tgbotapi.NewBotAPIWithAPIEndpoint(token, config.TelegramAPIEndpoint)
+	}
 
 	// Initialize HTTP bot (always needed)
-	HTTPBot, err = tgbotapi.NewBotAPI(config.HTTPToken)
+	HTTPBot, err = newBot(config.HTTPToken)
 	if err != nil {
-		logger.Error("实例化 HTTP BotAPI 失败: %s", err)
-		os.Exit(1)
+		return fmt.Errorf("实例化 HTTP BotAPI: %w", err)
 	}
 	HTTPBot.Debug = config.DebugFlag
 
@@ -31,10 +34,9 @@ func InitBot() {
 	if config.HTTPToken == config.BotToken {
 		Bot = HTTPBot
 	} else {
-		Bot, err = tgbotapi.NewBotAPI(config.BotToken)
+		Bot, err = newBot(config.BotToken)
 		if err != nil {
-			logger.Error("实例化 BotAPI 失败: %s", err)
-			os.Exit(1)
+			return fmt.Errorf("实例化 BotAPI: %w", err)
 		}
 		Bot.Debug = config.DebugFlag
 	}
@@ -47,14 +49,14 @@ func InitBot() {
 	if proxy := fetchProxy(); proxy != "" {
 		proxyURL, err := url.Parse(proxy)
 		if err != nil {
-			logger.Error("解析代理 URL 失败: %s", proxy)
-			return
+			return fmt.Errorf("解析代理 URL: %w", err)
 		}
 		Bot.Client = &http.Client{
 			Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)},
 		}
-		logger.Info("使用代理: %s", proxy)
+		logger.Info("使用代理")
 	}
+	return nil
 }
 
 func fetchProxy() string {

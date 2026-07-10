@@ -6,15 +6,17 @@ import (
 	"github.com/google/uuid"
 	tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
 	"github.com/swim233/StickerDownloader/lib"
+	"github.com/swim233/StickerDownloader/runtimeguard"
 	"github.com/swim233/StickerDownloader/utils"
 )
 
 var TaskChan = make(chan lib.Task, 32)
 
 func TaskManager() {
-	for {
-		task := <-TaskChan
-		go TaskHandler(task, context.Background())
+	for task := range TaskChan {
+		runtimeguard.Go("task-handler", runtimeguard.Task, func() {
+			TaskHandler(task, context.Background())
+		})
 	}
 }
 
