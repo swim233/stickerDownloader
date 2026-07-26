@@ -20,38 +20,33 @@
 
 ## 🚀 快速开始
 
-第一次运行时会自动生成 `.env` 文件，请配置以下内容：
+复制安全的示例配置并填写 Bot Token 与 Owner Chat ID：
 
-```env
-# Telegram Bot Token
-Token=YOUR_TOKEN_ID
-
-# HTTP Server Telegram Bot Token
-HTTPToken=YOUR_TOKEN_ID
-
-# 日志等级 (可选值: DEBUG, INFO, WARN, ERROR)
-LogLevel=DEBUG/INFO/WARN/ERROR
-
-# 是否开启BotAPI debug输出(true/false)
-DebugFlag=true
-
-# API 日志等级 (可选值: DEBUG, INFO, WARN, ERROR)
-ApiLogLevel=DEBUG/INFO/WARN/ERROR
-
-# WebP 转 JPEG 的质量 (范围: 0-100)
-WebPToJPEGQuality=100
-
-# HTTP 服务器端口 (格式: :端口号)
-HTTPServerPort=:8070
-
-# 是否启用 HTTP 服务器 (true/false)
-EnableHTTPServer=false
-
-# 最大并发数  
-MaxConcurrency=5
+```bash
+cp config/config.example.yaml config/config.yaml
+chmod 600 config/config.yaml
+cd src
+go build -o ../bin/stickerDownloader .
+../bin/stickerDownloader --config ../config/config.yaml
 ```
 
-HTTP 服务器默认监听端口为：`8070`
+程序默认以 supervisor 模式启动同一二进制的 worker 子进程。worker 意外退出时会指数退避并自动重启；5 分钟内连续崩溃 5 次会暂停 15 分钟，防止 crash loop。
+
+在 `config/config.yaml` 中配置：
+
+```yaml
+telegram:
+  token: "YOUR_BOT_TOKEN"
+  http_token: "YOUR_BOT_TOKEN"
+  owner_chat_id: 123456789
+```
+
+- `owner_chat_id` 仅从 YAML 读取；设为 `0` 会禁用运维通知，但不影响自动重启。
+- Owner 会收到启动、任务级 panic、worker 崩溃、计划重启、崩溃循环和正常停止通知。
+- 向 supervisor 发送 `SIGINT` 或 `SIGTERM` 会转发给 worker 并正常停止，不会触发重启。
+- 推荐始终使用绝对路径传入 `--config`，避免工作目录变化导致读取错误。
+
+完整的通知、重启和 HTTP 配置见 `config/config.example.yaml`。HTTP 服务器默认监听端口为 `8070`。
 
 ---
 

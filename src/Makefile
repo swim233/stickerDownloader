@@ -22,7 +22,10 @@ build: ensure_bin_dir
 	@echo "编译完成: $(FILENAME)-$(ARCH)-$(OS)-$(VERSION)"
 
 run:
-	go run ./*.go
+	go run . --config ../config/config.yaml
+
+unit_test:
+	go test ./...
 
 build_all: ensure_bin_dir
 	@echo "正在编译全平台的文件"
@@ -42,7 +45,7 @@ build_all: ensure_bin_dir
 	upx --best --lzma ../bin/$(FILENAME)-amd64-linux-$(VERSION)-upx
 	upx --best --lzma ../bin/$(FILENAME)-arm64-linux-$(VERSION)-upx
 	upx --best --lzma ../bin/$(FILENAME)-amd64-windows-$(VERSION)-upx.exe
-	upx --best --lzma ../bin/$(FILENAME)-arm64-windows-$(VERSION)-upx.exe
+	-upx --best --lzma ../bin/$(FILENAME)-arm64-windows-$(VERSION)-upx.exe || true
 	@echo "全平台编译完成"
 
 test: ensure_bin_dir

@@ -13,6 +13,7 @@ import (
 	db "github.com/swim233/StickerDownloader/db"
 	"github.com/swim233/StickerDownloader/lib"
 	logger "github.com/swim233/StickerDownloader/logger"
+	"github.com/swim233/StickerDownloader/runtimeguard"
 	utils "github.com/swim233/StickerDownloader/utils"
 )
 
@@ -37,7 +38,7 @@ func InitDownloaderPool() {
 	}
 }
 
-func (p *BlockingPool) Get() *StickerDownloader { return <-p.pool }
+func (p *BlockingPool) Get() *StickerDownloader  { return <-p.pool }
 func (p *BlockingPool) Put(d *StickerDownloader) { p.pool <- d }
 
 // tr is a helper to get translated text for a user.
@@ -62,51 +63,96 @@ func (m MessageSender) ButtonMessageSender(u tgbotapi.Update, sticker tgbotapi.S
 	return nil
 }
 
+const expiredCallbackText = "操作已失效，请重新发送贴纸或贴纸包链接。\nThis action has expired. Please send the sticker or sticker pack link again."
+
+func answerExpiredCallback(callback *tgbotapi.CallbackQuery) {
+	utils.RuntimeStatus.RecordError(lib.RuntimeErrorRequest)
+	if callback == nil {
+		return
+	}
+	if _, err := callback.Answer(true, expiredCallbackText); err != nil {
+		logger.Warn("响应失效回调出错: %s", err)
+	}
+}
+
+// recordBotDownload adds a WebUI history record for a bot-triggered download.
+func recordBotDownload(callback *tgbotapi.CallbackQuery, record lib.DownloadRecord) {
+	record.Source = lib.DownloadSourceBot
+	if callback != nil && callback.From != nil {
+		record.UserID = callback.From.ID
+		record.UserName = callback.From.UserName
+		record.DisplayName = strings.TrimSpace(callback.From.FirstName + " " + callback.From.LastName)
+	}
+	utils.DownloadHistory.Add(record)
+}
+
 // ThisSender downloads a single sticker in the requested format.
 func (m MessageSender) ThisSender(format lib.TaskFileFormat, u tgbotapi.Update) error {
-	chatID := u.CallbackQuery.Message.Chat.ID
-	userID := u.CallbackQuery.From.ID
+	callback := u.CallbackQuery
+	if callback == nil || callback.Message == nil || callback.Message.Chat == nil {
+		logger.Warn("无法下载单个贴纸：回调消息上下文不完整")
+		answerExpiredCallback(callback)
+		return nil
+	}
 
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				logger.Error("panic 恢复: %v", r)
-				update, err := json.MarshalIndent(u, "", "  ")
-				if err == nil {
-					logger.Error("update: %s", string(update))
-				}
-				utils.RuntimeStatus.Errors.Add(1)
-			}
-		}()
+	callbackMsg := callback.Message
+	chatID := callbackMsg.Chat.ID
+	userID := chatID
+	if callback.From != nil {
+		userID = callback.From.ID
+	}
+	if callbackMsg.ReplyToMessage == nil || callbackMsg.ReplyToMessage.Sticker == nil || callbackMsg.ReplyToMessage.Sticker.FileID == "" {
+		logger.Warn("无法下载单个贴纸：原始贴纸消息上下文已失效 (chat_id=%d, message_id=%d, user_id=%d)", chatID, callbackMsg.MessageID, userID)
+		answerExpiredCallback(callback)
+		return nil
+	}
 
+	replyMsg := callbackMsg.ReplyToMessage
+	sticker := replyMsg.Sticker
+	replyMsgID := replyMsg.MessageID
+	fileID := sticker.FileID
+	fileSize := sticker.FileSize
+	setName := sticker.SetName
+	stickerEmoji := sticker.Emoji
+	isVideo := sticker.IsVideo
+	stickerName := setName
+	if stickerName == "" {
+		stickerName = "sticker"
+	}
+	recordSingle := func(size int64, format lib.TaskFileFormat) {
+		recordBotDownload(callback, lib.DownloadRecord{
+			Kind:          lib.DownloadKindSingle,
+			SetName:       setName,
+			StickerFileID: fileID,
+			StickerEmoji:  stickerEmoji,
+			Format:        format.String(),
+			FileCount:     1,
+			FileSize:      size,
+		})
+	}
+
+	runtimeguard.Go("single-sticker-download", runtimeguard.Task, func() {
 		if userID != 0 {
-			u.CallbackQuery.Answer(false, tr(userID).DownloadingSingleSticker)
+			callback.Answer(false, tr(userID).DownloadingSingleSticker)
 		}
-
-		replyMsg := u.CallbackQuery.Message.ReplyToMessage
-		replyMsgID := replyMsg.MessageID
 
 		// Fast path: webp format, just forward the file
 		if format == lib.WebpFormat {
-			msg := tgbotapi.NewDocument(chatID, tgbotapi.FileID(replyMsg.Sticker.FileID))
+			msg := tgbotapi.NewDocument(chatID, tgbotapi.FileID(fileID))
 			msg.ReplyToMessageID = replyMsgID
 			utils.RuntimeStatus.SingleDownload.Add(1)
-			db.RecordUserData(u, int64(replyMsg.Sticker.FileSize), 1)
+			db.RecordUserData(u, int64(fileSize), 1)
+			recordSingle(int64(fileSize), format)
 			core.Bot.Send(msg)
-			u.CallbackQuery.Delete()
+			callback.Delete()
 			return
 		}
 
 		dl := downloaderPool.Get()
 		defer downloaderPool.Put(dl)
 
-		stickerName := replyMsg.Sticker.SetName
-		if stickerName == "" {
-			stickerName = "sticker"
-		}
-
-		if replyMsg.Sticker.IsVideo {
-			data, _ := dl.DownloadFile(u)
+		if isVideo {
+			data, _ := dl.DownloadFile(fileID)
 			db.RecordUserData(u, int64(len(data)), 1)
 			msg := tgbotapi.NewDocument(chatID, tgbotapi.FileBytes{
 				Bytes: data,
@@ -114,9 +160,10 @@ func (m MessageSender) ThisSender(format lib.TaskFileFormat, u tgbotapi.Update) 
 			})
 			msg.ReplyToMessageID = replyMsgID
 			utils.RuntimeStatus.SingleDownload.Add(1)
+			recordSingle(int64(len(data)), format)
 			core.Bot.Send(msg)
 		} else {
-			webp, err := dl.DownloadFile(u)
+			webp, err := dl.DownloadFile(fileID)
 			if err != nil {
 				logger.Error("下载文件出错: %s", err)
 				return
@@ -130,10 +177,11 @@ func (m MessageSender) ThisSender(format lib.TaskFileFormat, u tgbotapi.Update) 
 			})
 			msg.ReplyToMessageID = replyMsgID
 			utils.RuntimeStatus.SingleDownload.Add(1)
+			recordSingle(int64(len(data)), format)
 			core.Bot.Send(msg)
 		}
-		u.CallbackQuery.Delete()
-	}()
+		callback.Delete()
+	})
 	return nil
 }
 
@@ -162,9 +210,26 @@ func convertStickerData(webp []byte, format lib.TaskFileFormat) []byte {
 
 // formatChooser is the unified implementation for ThisFormatChose and ZipFormatChose (Phase 4.3).
 func (m MessageSender) formatChooser(u tgbotapi.Update, callbackPrefix string) error {
-	editMsgID := u.CallbackQuery.Message.MessageID
-	chatID := u.CallbackQuery.Message.Chat.ID
-	userID := u.CallbackQuery.Message.ReplyToMessage.From.ID
+	callback := u.CallbackQuery
+	if callback == nil || callback.Message == nil || callback.Message.Chat == nil {
+		logger.Warn("无法选择下载格式：回调消息上下文不完整")
+		answerExpiredCallback(callback)
+		return nil
+	}
+
+	callbackMsg := callback.Message
+	chatID := callbackMsg.Chat.ID
+	userID := chatID
+	if callback.From != nil {
+		userID = callback.From.ID
+	}
+	if callbackMsg.ReplyToMessage == nil || (callbackPrefix == "" && (callbackMsg.ReplyToMessage.Sticker == nil || callbackMsg.ReplyToMessage.Sticker.FileID == "")) {
+		logger.Warn("无法选择下载格式：原始消息上下文已失效 (chat_id=%d, message_id=%d, user_id=%d)", chatID, callbackMsg.MessageID, userID)
+		answerExpiredCallback(callback)
+		return nil
+	}
+
+	editMsgID := callbackMsg.MessageID
 	t := tr(userID)
 
 	prefix := ""
@@ -235,7 +300,7 @@ func (m MessageSender) ChangeUserLanguage(u tgbotapi.Update, lang string) error 
 func (m MessageSender) ZipSender(format lib.TaskFileFormat, u tgbotapi.Update) error {
 	if u.CallbackQuery == nil || u.CallbackQuery.Message == nil || u.CallbackQuery.Message.Chat == nil {
 		logger.Warn("无法下载贴纸包：回调消息上下文不完整")
-		utils.RuntimeStatus.Errors.Add(1)
+		utils.RuntimeStatus.RecordError(lib.RuntimeErrorRequest)
 		return nil
 	}
 
@@ -248,30 +313,20 @@ func (m MessageSender) ZipSender(format lib.TaskFileFormat, u tgbotapi.Update) e
 	}
 	if callbackMsg.ReplyToMessage == nil {
 		logger.Warn("无法下载贴纸包：原始消息上下文已失效 (chat_id=%d, message_id=%d, user_id=%d)", chatID, callbackMsg.MessageID, userID)
-		utils.RuntimeStatus.Errors.Add(1)
-		if _, err := callback.Answer(true, "操作已失效，请重新发送贴纸或贴纸包链接。\nThis action has expired. Please send the sticker or sticker pack link again."); err != nil {
-			logger.Warn("响应失效回调出错: %s", err)
-		}
+		answerExpiredCallback(callback)
 		return nil
 	}
 
 	replyMsg := callbackMsg.ReplyToMessage
 	replyMsgID := replyMsg.MessageID
 
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				logger.Error("下载贴纸包 panic 恢复: %v", r)
-				utils.RuntimeStatus.Errors.Add(1)
-			}
-		}()
-
+	runtimeguard.Go("sticker-pack-download", runtimeguard.Task, func() {
 		callback.Answer(false, tr(userID).DownloadingStickerSet)
 
 		stickerSetName := GetStickerSetName(u)
 		if stickerSetName == "" {
 			logger.Warn("无法下载贴纸包：原始消息中没有贴纸包信息 (chat_id=%d, message_id=%d, user_id=%d)", chatID, callbackMsg.MessageID, userID)
-			utils.RuntimeStatus.Errors.Add(1)
+			utils.RuntimeStatus.RecordError(lib.RuntimeErrorRequest)
 			return
 		}
 
@@ -284,6 +339,7 @@ func (m MessageSender) ZipSender(format lib.TaskFileFormat, u tgbotapi.Update) e
 		var requestFile tgbotapi.RequestFileData
 		var fileSize int64
 		var stickerNum int
+		var cacheHit bool
 
 		// Check cache
 		fileID, cachedSize, cachedNum, err := cache.GetCacheFileID(stickerSet, format)
@@ -291,6 +347,7 @@ func (m MessageSender) ZipSender(format lib.TaskFileFormat, u tgbotapi.Update) e
 			requestFile = tgbotapi.FileID(fileID)
 			fileSize = cachedSize
 			stickerNum = cachedNum
+			cacheHit = true
 			utils.RuntimeStatus.CacheHits.Add(1)
 			logger.Info("缓存命中: %s", stickerSet.Name)
 		} else {
@@ -349,9 +406,18 @@ func (m MessageSender) ZipSender(format lib.TaskFileFormat, u tgbotapi.Update) e
 			// Record cache data
 			recordStickerCache(stickerSet, userID, format, message.Document.FileID, fileSize)
 		}
+		recordBotDownload(callback, lib.DownloadRecord{
+			Kind:      lib.DownloadKindPack,
+			SetName:   stickerSet.Name,
+			SetTitle:  stickerSet.Title,
+			Format:    format.String(),
+			FileCount: stickerNum,
+			FileSize:  fileSize,
+			CacheHit:  cacheHit,
+		})
 
 		u.CallbackQuery.Delete()
-	}()
+	})
 	return nil
 }
 

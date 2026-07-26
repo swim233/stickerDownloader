@@ -25,6 +25,7 @@ func getUrl(fileID string) (string, error) {
 			lastErr = err
 			continue
 		}
+		logger.Debug("已解析 Telegram 文件路径")
 		return fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", config.BotToken, file.FilePath), nil
 	}
 	return "", lastErr
@@ -32,11 +33,13 @@ func getUrl(fileID string) (string, error) {
 
 // getSetUrl resolves a sticker's file URL.
 func getSetUrl(sticker tgbotapi.Sticker) (string, error) {
+
 	return getUrl(sticker.FileID)
 }
 
 // getStickerSetName extracts the sticker set name from a callback query.
 func getStickerSetName(u tgbotapi.Update) string {
+
 	var stickerLinkRegex = regexp.MustCompile(`https://t.me/addstickers/([a-zA-Z0-9_]+)`)
 
 	if u.CallbackQuery != nil && u.CallbackQuery.Message.ReplyToMessage.Sticker != nil {

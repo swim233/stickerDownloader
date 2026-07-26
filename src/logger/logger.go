@@ -60,7 +60,7 @@ func InitLogger() {
 		level,
 	)
 
-	logger = zap.New(core, zap.AddCaller())
+	logger = zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1))
 	sugar = logger.Sugar()
 }
 

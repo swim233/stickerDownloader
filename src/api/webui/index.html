@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StickerDownloader 面板</title>
+<style>
+:root {
+  --bg: #EEF3F8;
+  --card: #FFFFFF;
+  --ink: #16212B;
+  --ink-2: #5B6B7A;
+  --ink-3: #8FA1B0;
+  --accent: #2E9BD6;
+  --accent-deep: #1C6E9E;
+  --accent-soft: #E7F3FB;
+  --line: #DDE7EF;
+  --bad: #C4453A;
+  --bad-soft: #FBEBE9;
+  --ok-soft: #E8F5EC;
+  --ok: #2E7D46;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0E1621;
+    --card: #17212B;
+    --ink: #E7EDF2;
+    --ink-2: #8A9AA9;
+    --ink-3: #5F7183;
+    --accent: #4FB0E8;
+    --accent-deep: #6EC1F0;
+    --accent-soft: #1D2C3B;
+    --line: #24303C;
+    --bad: #E4766C;
+    --bad-soft: #33201F;
+    --ok-soft: #1C2F23;
+    --ok: #7CC493;
+  }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.num { font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; font-variant-numeric: tabular-nums; }
+.wrap { max-width: 860px; margin: 0 auto; padding: 28px 16px 64px; }
+
+header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+h1 { font-size: 22px; font-weight: 750; letter-spacing: -0.01em; }
+h1 .dot { color: var(--accent); }
+.sub { color: var(--ink-2); font-size: 13px; }
+.toolbar { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.updated { color: var(--ink-3); font-size: 12px; }
+button.refresh {
+  border: 1px solid var(--line); background: var(--card); color: var(--accent-deep);
+  border-radius: 8px; padding: 5px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+button.refresh:hover { border-color: var(--accent); }
+button.refresh:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.meta { color: var(--ink-2); font-size: 13px; margin-bottom: 20px; }
+
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 28px; }
+.tile { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px 12px; }
+.tile .v { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+.tile .l { font-size: 12px; color: var(--ink-2); margin-top: 2px; }
+.tile .s { font-size: 12px; color: var(--ink-3); margin-top: 6px; }
+.tile.err .v { color: var(--ink); }
+.tile.err.alert .v { color: var(--bad); }
+
+.feed-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+.feed-head h2 { font-size: 16px; font-weight: 700; }
+.feed-head .cap { color: var(--ink-3); font-size: 12px; }
+
+.feed { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.msg { display: flex; gap: 12px; align-items: flex-start; }
+.stk {
+  flex: none; width: 52px; height: 52px; border-radius: 14px;
+  background: var(--accent-soft);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; user-select: none;
+}
+.bubble {
+  position: relative; background: var(--card); border: 1px solid var(--line);
+  border-radius: 4px 16px 16px 16px; padding: 10px 14px 9px; min-width: 0; flex: 1;
+}
+.bubble .who { font-weight: 650; font-size: 14px; }
+.bubble .who .at { color: var(--accent-deep); font-weight: 500; }
+.bubble .what { font-size: 14px; margin-top: 1px; overflow-wrap: anywhere; }
+.bubble .what b { font-weight: 650; }
+.bubble .what .set { color: var(--accent-deep); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip {
+  font-size: 11.5px; color: var(--ink-2); border: 1px solid var(--line);
+  border-radius: 999px; padding: 1px 8px; white-space: nowrap;
+}
+.chip.cache { color: var(--ok); background: var(--ok-soft); border-color: transparent; }
+.chip.time { border: none; padding-left: 0; color: var(--ink-3); }
+
+.empty {
+  background: var(--card); border: 1px dashed var(--line); border-radius: 16px;
+  padding: 40px 20px; text-align: center; color: var(--ink-2); font-size: 14px;
+}
+.empty .big { font-size: 34px; margin-bottom: 8px; }
+
+.error-banner {
+  display: none; background: var(--bad-soft); color: var(--bad);
+  border-radius: 10px; padding: 8px 14px; font-size: 13px; margin-bottom: 16px;
+}
+footer { margin-top: 32px; color: var(--ink-3); font-size: 12px; }
+footer a { color: var(--accent-deep); text-decoration: none; }
+
+.login-overlay {
+  position: fixed; inset: 0; z-index: 10;
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  display: none; align-items: center; justify-content: center; padding: 16px;
+}
+.login-overlay.show { display: flex; }
+.login-card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 18px;
+  padding: 28px 26px 24px; width: 100%; max-width: 320px;
+}
+.login-card .stk { margin: 0 auto 14px; }
+.login-card h2 { font-size: 17px; text-align: center; margin-bottom: 4px; }
+.login-card p { font-size: 13px; color: var(--ink-2); text-align: center; margin-bottom: 16px; }
+.login-card input {
+  width: 100%; padding: 9px 12px; font-size: 15px; color: var(--ink);
+  background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+}
+.login-card input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+.login-card button {
+  width: 100%; margin-top: 10px; padding: 9px 0; font-size: 15px; font-weight: 650;
+  color: #fff; background: var(--accent); border: none; border-radius: 10px; cursor: pointer;
+}
+.login-card button:hover { background: var(--accent-deep); }
+.login-card button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.login-card .err { color: var(--bad); font-size: 13px; text-align: center; margin-top: 10px; min-height: 1.2em; }
+
+@media (max-width: 480px) {
+  .tiles { grid-template-columns: repeat(2, 1fr); }
+  .toolbar { margin-left: 0; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .msg { animation: rise .25s ease both; }
+  @keyframes rise { from { opacity: 0; transform: translateY(4px); } }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>StickerDownloader<span class="dot">.</span></h1>
+    <span class="sub">运行面板</span>
+    <div class="toolbar">
+      <span class="updated" id="updated"></span>
+      <button class="refresh" id="refresh" type="button">刷新</button>
+    </div>
+  </header>
+  <p class="meta" id="meta">加载中…</p>
+
+  <div class="error-banner" id="error-banner"></div>
+
+  <section class="tiles" id="tiles" aria-label="运行统计"></section>
+
+  <section aria-label="最近下载">
+    <div class="feed-head">
+      <h2>最近下载</h2>
+      <span class="cap" id="cap"></span>
+    </div>
+    <ol class="feed" id="feed"></ol>
+    <div class="empty" id="empty" hidden>
+      <div class="big">📭</div>
+      还没有下载记录 — 给机器人发送一个贴纸，记录会出现在这里
+    </div>
+  </section>
+
+  <footer>数据每 10 秒自动刷新 · HTTP 接口：<a href="api/status">api/status</a> · <a href="api/history">api/history</a></footer>
+</div>
+
+<div class="login-overlay" id="login-overlay">
+  <form class="login-card" id="login-form">
+    <div class="stk">🔐</div>
+    <h2>StickerDownloader</h2>
+    <p>输入访问密码查看运行面板</p>
+    <input type="password" id="login-password" placeholder="访问密码" autocomplete="current-password" aria-label="访问密码">
+    <button type="submit">登录</button>
+    <div class="err" id="login-error"></div>
+  </form>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+function fmtBytes(n) {
+  if (!n) return "0 B";
+  const units = ["B", "KB", "MB", "GB"];
+  let i = 0;
+  while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+  return (i === 0 ? n : n.toFixed(1)) + " " + units[i];
+}
+function fmtUptime(sec) {
+  if (sec < 0) sec = 0;
+  const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600), m = Math.floor(sec % 3600 / 60);
+  if (d > 0) return d + " 天 " + h + " 小时";
+  if (h > 0) return h + " 小时 " + m + " 分钟";
+  return m + " 分钟";
+}
+function fmtTime(iso) {
+  const t = new Date(iso), now = new Date();
+  const diff = (now - t) / 1000;
+  if (diff < 60) return "刚刚";
+  if (diff < 3600) return Math.floor(diff / 60) + " 分钟前";
+  const sameDay = t.toDateString() === now.toDateString();
+  const hm = t.toTimeString().slice(0, 5);
+  if (sameDay) return hm;
+  return (t.getMonth() + 1) + "月" + t.getDate() + "日 " + hm;
+}
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function tile(value, label, sub, cls) {
+  const t = el("div", "tile" + (cls ? " " + cls : ""));
+  t.append(Object.assign(el("div", "v num", value)), el("div", "l", label));
+  if (sub) t.append(el("div", "s", sub));
+  return t;
+}
+
+function renderStatus(s) {
+  $("meta").textContent = "启动于 " + new Date(s.start_time).toLocaleString("zh-CN", { hour12: false }) +
+    " · 已运行 " + fmtUptime(s.uptime_seconds);
+  const tiles = $("tiles");
+  tiles.replaceChildren(
+    tile(String(s.single_download), "已下载贴纸", "单个贴纸（Bot）"),
+    tile(String(s.pack_download), "已下载贴纸包", "Bot 请求"),
+    tile(String(s.http_pack_download), "HTTP 贴纸包", "HTTP 接口请求"),
+    tile(s.cache_hit_rate.toFixed(1) + "%", "缓存命中率", "命中 " + s.cache_hits + " 次"),
+    tile(String(s.total_errors), "错误",
+      "panic " + s.panic_errors + " · 请求 " + s.request_errors + " · 下载 " + s.download_errors + " · 通知 " + s.notification_errors,
+      s.total_errors > 0 ? "err alert" : "err")
+  );
+}
+
+function stickerFace(r) {
+  if (r.kind === "single" && r.sticker_emoji) return r.sticker_emoji;
+  if (r.kind === "pack") return "📦";
+  return "🖼️";
+}
+function whoText(r) {
+  if (r.source === "http") return r.display_name || "HTTP API";
+  return r.display_name || (r.user_id ? "用户 " + r.user_id : "未知用户");
+}
+
+function renderHistory(h) {
+  $("cap").textContent = "保留最近 " + h.capacity + " 条";
+  const feed = $("feed");
+  feed.replaceChildren();
+  const records = h.records || [];
+  $("empty").hidden = records.length > 0;
+  for (const r of records) {
+    const li = el("li", "msg");
+    li.append(el("div", "stk", stickerFace(r)));
+    const bubble = el("div", "bubble");
+
+    const who = el("div", "who", whoText(r));
+    if (r.user_name) who.append(" ", Object.assign(el("span", "at", "@" + r.user_name)));
+    bubble.append(who);
+
+    const what = el("div", "what");
+    what.append(r.kind === "pack" ? "下载了贴纸包 " : "下载了单个贴纸 ");
+    const setLabel = r.set_title || r.set_name;
+    if (setLabel) {
+      const b = el("b", "set", setLabel);
+      what.append(b);
+      if (r.set_title && r.set_name && r.set_title !== r.set_name) what.append(" (" + r.set_name + ")");
+    } else {
+      what.append("（无贴纸包）");
+    }
+    bubble.append(what);
+
+    const chips = el("div", "chips");
+    chips.append(el("span", "chip", r.format));
+    if (r.kind === "pack") chips.append(el("span", "chip", r.file_count + " 张"));
+    if (r.file_size) chips.append(el("span", "chip", fmtBytes(r.file_size)));
+    if (r.cache_hit) chips.append(el("span", "chip cache", "缓存命中"));
+    if (r.source === "http") chips.append(el("span", "chip", "HTTP"));
+    chips.append(el("span", "chip time", fmtTime(r.time)));
+    bubble.append(chips);
+
+    li.append(bubble);
+    feed.append(li);
+  }
+}
+
+function showLogin(show) {
+  $("login-overlay").classList.toggle("show", show);
+  if (show) $("login-password").focus();
+}
+
+async function refresh() {
+  const banner = $("error-banner");
+  try {
+    const [statusResp, historyResp] = await Promise.all([fetch("api/status"), fetch("api/history")]);
+    if (statusResp.status === 401 || historyResp.status === 401) {
+      showLogin(true);
+      return;
+    }
+    if (statusResp.status === 403) {
+      const body = await statusResp.json().catch(() => ({}));
+      throw new Error(body.error || "WebUI 已禁用");
+    }
+    if (!statusResp.ok || !historyResp.ok) throw new Error("接口返回 " + statusResp.status + "/" + historyResp.status);
+    renderStatus(await statusResp.json());
+    renderHistory(await historyResp.json());
+    showLogin(false);
+    banner.style.display = "none";
+    $("updated").textContent = "更新于 " + new Date().toTimeString().slice(0, 8);
+  } catch (err) {
+    banner.textContent = "获取数据失败：" + err.message + "，将在下次刷新时重试";
+    banner.style.display = "block";
+  }
+}
+
+$("login-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const errorLine = $("login-error");
+  errorLine.textContent = "";
+  try {
+    const resp = await fetch("api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: $("login-password").value })
+    });
+    if (!resp.ok) {
+      const body = await resp.json().catch(() => ({}));
+      errorLine.textContent = body.error || "登录失败（" + resp.status + "）";
+      return;
+    }
+    $("login-password").value = "";
+    showLogin(false);
+    refresh();
+  } catch (err) {
+    errorLine.textContent = "无法连接服务器：" + err.message;
+  }
+});
+
+$("refresh").addEventListener("click", refresh);
+setInterval(() => { if (!document.hidden) refresh(); }, 10000);
+refresh();
+</script>
+</body>
+</html>
