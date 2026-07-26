@@ -75,6 +75,37 @@ func TestSendEventDeduplicates(t *testing.T) {
 	}
 }
 
+func TestSendPanicRetriesAfterFailure(t *testing.T) {
+	var calls atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		call := calls.Add(1)
+		if call == 1 {
+			w.WriteHeader(http.StatusBadGateway)
+			_, _ = w.Write([]byte(`{"ok":false,"description":"temporary failure"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"ok":true,"result":{}}`))
+	}))
+	defer server.Close()
+
+	n := New(Config{
+		Token:       "fake-token",
+		OwnerChatID: 1,
+		APIEndpoint: server.URL + "/bot%s/%s",
+		DedupWindow: time.Hour,
+	})
+	stack := []byte("goroutine 1 [running]:\nexample.fn()\n\t/example.go:10")
+	if err := n.SendPanic(context.Background(), "component", "boom", stack, "Run: test"); err == nil {
+		t.Fatal("expected first send to fail")
+	}
+	if err := n.SendPanic(context.Background(), "component", "boom", stack, "Run: test"); err != nil {
+		t.Fatalf("second send failed: %v", err)
+	}
+	if got := calls.Load(); got != 2 {
+		t.Fatalf("calls = %d, want 2", got)
+	}
+}
+
 func TestErrorDoesNotExposeToken(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadGateway)

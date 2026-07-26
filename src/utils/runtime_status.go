@@ -7,35 +7,48 @@ import (
 	tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
 	"github.com/swim233/StickerDownloader/core"
 	"github.com/swim233/StickerDownloader/lib"
+	"github.com/swim233/StickerDownloader/logger"
 )
 
 var RuntimeStatus lib.RuntimeStatus
 
-// SendRuntimeStatusInfo sends runtime statistics to the requesting user.
-func SendRuntimeStatusInfo(u tgbotapi.Update) error {
-	// Bug fix: was `!= nil` which returned early when user exists
-	if u.Message.From == nil {
-		return nil
+type runtimeStatusSnapshot struct {
+	startTime          time.Time
+	singleDownload     int64
+	packDownload       int64
+	httpSingleDownload int64
+	httpPackDownload   int64
+	cacheHits          int64
+	panicErrors        int64
+	requestErrors      int64
+	downloadErrors     int64
+	notificationErrors int64
+}
+
+func currentRuntimeStatus() runtimeStatusSnapshot {
+	return runtimeStatusSnapshot{
+		startTime:          RuntimeStatus.StartTime,
+		singleDownload:     RuntimeStatus.SingleDownload.Load(),
+		packDownload:       RuntimeStatus.PackDownload.Load(),
+		httpSingleDownload: RuntimeStatus.HTTPSingleDownload.Load(),
+		httpPackDownload:   RuntimeStatus.HTTPPackDownload.Load(),
+		cacheHits:          RuntimeStatus.CacheHits.Load(),
+		panicErrors:        RuntimeStatus.PanicErrors.Load(),
+		requestErrors:      RuntimeStatus.RequestErrors.Load(),
+		downloadErrors:     RuntimeStatus.DownloadErrors.Load(),
+		notificationErrors: RuntimeStatus.NotificationErrors.Load(),
 	}
-	chatID := u.Message.From.ID
+}
 
-	singleDL := RuntimeStatus.SingleDownload.Load()
-	packDL := RuntimeStatus.PackDownload.Load()
-	httpSingleDL := RuntimeStatus.HTTPSingleDownload.Load()
-	httpPackDL := RuntimeStatus.HTTPPackDownload.Load()
-	cacheHits := RuntimeStatus.CacheHits.Load()
-	errors := RuntimeStatus.Errors.Load()
-
+func formatRuntimeStatus(status runtimeStatusSnapshot, now time.Time) string {
 	var hitPercentage float64
-	totalPacks := packDL + httpPackDL
+	totalPacks := status.packDownload + status.httpPackDownload
 	if totalPacks > 0 {
-		hitPercentage = float64(cacheHits) / float64(totalPacks) * 100
+		hitPercentage = float64(status.cacheHits) / float64(totalPacks) * 100
 	}
 
-	duration := time.Since(RuntimeStatus.StartTime)
-	timeStr := formatDuration(duration)
-
-	text := fmt.Sprintf(
+	totalErrors := status.panicErrors + status.requestErrors + status.downloadErrors + status.notificationErrors
+	return fmt.Sprintf(
 		"启动时间 : %s\n"+
 			"本次运行时间 : %s\n"+
 			"机器人已下载贴纸总数 : %d\n"+
@@ -44,14 +57,31 @@ func SendRuntimeStatusInfo(u tgbotapi.Update) error {
 			"HTTP服务器已下载贴纸包数 : %d\n"+
 			"缓存生效次数 : %d\n"+
 			"缓存命中率 : %.1f%%\n"+
-			"发生错误数 : %d",
-		RuntimeStatus.StartTime.Format("2006-01-02 15:04:05"),
-		timeStr, singleDL, packDL, httpSingleDL, httpPackDL,
-		cacheHits, hitPercentage, errors,
+			"当前 Worker 错误总数 : %d\n"+
+			"  Panic : %d\n"+
+			"  过期/请求 : %d\n"+
+			"  下载 : %d\n"+
+			"  通知失败 : %d",
+		status.startTime.Format("2006-01-02 15:04:05"),
+		formatDuration(now.Sub(status.startTime)),
+		status.singleDownload, status.packDownload, status.httpSingleDownload, status.httpPackDownload,
+		status.cacheHits, hitPercentage, totalErrors,
+		status.panicErrors, status.requestErrors, status.downloadErrors, status.notificationErrors,
 	)
+}
 
-	msg := tgbotapi.NewMessage(chatID, text)
-	core.Bot.Send(msg)
+// SendRuntimeStatusInfo sends runtime statistics to the requesting user.
+func SendRuntimeStatusInfo(u tgbotapi.Update) error {
+	if u.Message == nil || u.Message.From == nil {
+		return nil
+	}
+
+	msg := tgbotapi.NewMessage(u.Message.From.ID, formatRuntimeStatus(currentRuntimeStatus(), time.Now()))
+	if _, err := core.Bot.Send(msg); err != nil {
+		RuntimeStatus.RecordError(lib.RuntimeErrorNotification)
+		logger.Warn("发送运行状态消息失败: %s", err)
+		return fmt.Errorf("发送运行状态消息: %w", err)
+	}
 	return nil
 }
 

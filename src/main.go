@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"regexp"
+	"runtime/debug"
 	"strings"
 	"syscall"
 	"time"
@@ -85,12 +86,19 @@ func runWorker(settings config.Settings, notifier *notify.Telegram) (exitCode in
 	runID := os.Getenv("STICKERDOWNLOADER_RUN_ID")
 	generation := os.Getenv("STICKERDOWNLOADER_GENERATION")
 	startedAt := time.Now()
+	utils.RuntimeStatus.StartTime = startedAt
 	defer func() {
 		if recovered := recover(); recovered != nil {
-			logger.Error("worker 主流程 panic: %v", recovered)
+			stack := debug.Stack()
+			utils.RuntimeStatus.RecordError(lib.RuntimeErrorPanic)
+			logger.Error("worker 主流程 panic: %v\n%s", recovered, stack)
 			ctx, cancel := context.WithTimeout(context.Background(), settings.Notification.RequestTimeout)
-			_ = notifier.SendPanic(ctx, "worker-main", recovered, nil, "Run: "+runID+"\nGeneration: "+generation)
+			err := notifier.SendPanic(ctx, "worker-main", recovered, stack, "Run: "+runID+"\nGeneration: "+generation)
 			cancel()
+			if err != nil {
+				utils.RuntimeStatus.RecordError(lib.RuntimeErrorNotification)
+				logger.Error("发送 worker 主流程 panic 通知失败: %s", err)
+			}
 			exitCode = supervisor.ExitCrash
 		}
 	}()
@@ -132,11 +140,11 @@ func runWorker(settings config.Settings, notifier *notify.Telegram) (exitCode in
 	guard.Go("task-manager", runtimeguard.Critical, func() { task.TaskManager() })
 	guard.Go("telegram-polling", runtimeguard.Critical, func() { b.Run() })
 
-	utils.RuntimeStatus.StartTime = startedAt
 	workerPID := os.Getpid()
 	readyText := fmt.Sprintf("✅ StickerDownloader 已启动\nRun: %s\nGeneration: %s\nPID: %d\nVersion: %s\nCommit: %s", runID, generation, workerPID, version, commitHash)
 	notifyCtx, cancelNotify := context.WithTimeout(context.Background(), settings.Notification.RequestTimeout)
 	if err := notifier.SendEvent(notifyCtx, runID+":"+generation+":started", readyText); err != nil {
+		utils.RuntimeStatus.RecordError(lib.RuntimeErrorNotification)
 		logger.Warn("发送启动通知失败: %s", err)
 	}
 	cancelNotify()

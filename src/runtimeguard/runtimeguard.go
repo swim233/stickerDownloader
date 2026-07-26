@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/swim233/StickerDownloader/lib"
 	"github.com/swim233/StickerDownloader/logger"
 	"github.com/swim233/StickerDownloader/notify"
 	"github.com/swim233/StickerDownloader/utils"
@@ -86,16 +87,18 @@ func (g *Guard) recover(name string, severity Severity) {
 	}
 }
 
-func (g *Guard) handle(name string, severity Severity, recovered any, stack []byte) {
-	utils.RuntimeStatus.Errors.Add(1)
-	func() {
-		defer func() {
-			if recover() != nil {
-				log.Printf("组件 %s panic: %v\n%s", name, recovered, stack)
-			}
-		}()
-		logger.Error("组件 %s panic: %v\n%s", name, recovered, stack)
+func logSafely(format string, args ...any) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			log.Printf(format, args...)
+		}
 	}()
+	logger.Error(format, args...)
+}
+
+func (g *Guard) handle(name string, severity Severity, recovered any, stack []byte) {
+	utils.RuntimeStatus.RecordError(lib.RuntimeErrorPanic)
+	logSafely("组件 %s panic: %v\n%s", name, recovered, stack)
 
 	if g != nil && g.Notifier != nil {
 		metadata := fmt.Sprintf("Run: %s\nGeneration: %s\nUptime: %s\nSeverity: %d", g.RunID, g.Generation, time.Since(g.StartTime).Round(time.Second), severity)
@@ -104,8 +107,12 @@ func (g *Guard) handle(name string, severity Severity, recovered any, stack []by
 			timeout = 8 * time.Second
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
-		_ = g.Notifier.SendPanic(ctx, name, recovered, stack, metadata)
+		err := g.Notifier.SendPanic(ctx, name, recovered, stack, metadata)
 		cancel()
+		if err != nil {
+			utils.RuntimeStatus.RecordError(lib.RuntimeErrorNotification)
+			logSafely("发送组件 %s panic 通知失败: %s", name, err)
+		}
 	}
 	if severity == Critical && g != nil && g.Fatal != nil {
 		select {

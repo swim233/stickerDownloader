@@ -43,9 +43,8 @@ func acquireFileDownloadSlot() func() {
 	return func() { <-fileDownloadSlots }
 }
 
-// DownloadFile downloads a single sticker file from a callback update.
-func (s StickerDownloader) DownloadFile(u tgbotapi.Update) ([]byte, error) {
-	fileID := u.CallbackQuery.Message.ReplyToMessage.Sticker.FileID
+// DownloadFile downloads a single sticker file by its Telegram file ID.
+func (s StickerDownloader) DownloadFile(fileID string) ([]byte, error) {
 	return downloadByFileID(fileID)
 }
 
@@ -96,7 +95,7 @@ func downloadByFileID(fileID string) ([]byte, error) {
 		}
 		return data, nil
 	}
-	utils.RuntimeStatus.Errors.Add(1)
+	utils.RuntimeStatus.RecordError(lib.RuntimeErrorDownload)
 	return nil, lastErr
 }
 
@@ -229,7 +228,7 @@ func (s StickerDownloader) DownloadStickerSet(format lib.TaskFileFormat, sticker
 // HTTPDownloadStickerSet downloads and zips a sticker set via HTTP API.
 func (s StickerDownloader) HTTPDownloadStickerSet(format string, setName string) ([]byte, error) {
 	if format != "webp" && format != "png" && format != "jpeg" {
-		utils.RuntimeStatus.Errors.Add(1)
+		utils.RuntimeStatus.RecordError(lib.RuntimeErrorRequest)
 		return nil, errors.New("invalid format: must be webp, png, or jpeg")
 	}
 
@@ -240,7 +239,7 @@ func (s StickerDownloader) HTTPDownloadStickerSet(format string, setName string)
 
 	zipData, _, err := downloadAndPackStickers(format, stickerSet, nil)
 	if err != nil {
-		utils.RuntimeStatus.Errors.Add(1)
+		utils.RuntimeStatus.RecordError(lib.RuntimeErrorDownload)
 		return nil, err
 	}
 
