@@ -18,6 +18,10 @@ image:
 server:
   enabled: false
   port: ":8070"
+  # WebUI 下载记录保留条数
+  history_size: 10
+  # WebUI 访问密码，留空时数据接口拒绝访问
+  password: ""
 
 download:
   max_concurrency: 30

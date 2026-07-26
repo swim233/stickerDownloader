@@ -40,6 +40,47 @@ func currentRuntimeStatus() runtimeStatusSnapshot {
 	}
 }
 
+// RuntimeStatusReport is the JSON shape served by the WebUI status API.
+type RuntimeStatusReport struct {
+	StartTime          time.Time `json:"start_time"`
+	UptimeSeconds      int64     `json:"uptime_seconds"`
+	SingleDownload     int64     `json:"single_download"`
+	PackDownload       int64     `json:"pack_download"`
+	HTTPSingleDownload int64     `json:"http_single_download"`
+	HTTPPackDownload   int64     `json:"http_pack_download"`
+	CacheHits          int64     `json:"cache_hits"`
+	CacheHitRate       float64   `json:"cache_hit_rate"`
+	TotalErrors        int64     `json:"total_errors"`
+	PanicErrors        int64     `json:"panic_errors"`
+	RequestErrors      int64     `json:"request_errors"`
+	DownloadErrors     int64     `json:"download_errors"`
+	NotificationErrors int64     `json:"notification_errors"`
+}
+
+// CurrentRuntimeStatusReport snapshots the runtime counters for the WebUI.
+func CurrentRuntimeStatusReport(now time.Time) RuntimeStatusReport {
+	status := currentRuntimeStatus()
+	var hitRate float64
+	if totalPacks := status.packDownload + status.httpPackDownload; totalPacks > 0 {
+		hitRate = float64(status.cacheHits) / float64(totalPacks) * 100
+	}
+	return RuntimeStatusReport{
+		StartTime:          status.startTime,
+		UptimeSeconds:      int64(now.Sub(status.startTime).Seconds()),
+		SingleDownload:     status.singleDownload,
+		PackDownload:       status.packDownload,
+		HTTPSingleDownload: status.httpSingleDownload,
+		HTTPPackDownload:   status.httpPackDownload,
+		CacheHits:          status.cacheHits,
+		CacheHitRate:       hitRate,
+		TotalErrors:        status.panicErrors + status.requestErrors + status.downloadErrors + status.notificationErrors,
+		PanicErrors:        status.panicErrors,
+		RequestErrors:      status.requestErrors,
+		DownloadErrors:     status.downloadErrors,
+		NotificationErrors: status.notificationErrors,
+	}
+}
+
 func formatRuntimeStatus(status runtimeStatusSnapshot, now time.Time) string {
 	var hitPercentage float64
 	totalPacks := status.packDownload + status.httpPackDownload

@@ -237,13 +237,23 @@ func (s StickerDownloader) HTTPDownloadStickerSet(format string, setName string)
 		return nil, err
 	}
 
-	zipData, _, err := downloadAndPackStickers(format, stickerSet, nil)
+	zipData, stickerNum, err := downloadAndPackStickers(format, stickerSet, nil)
 	if err != nil {
 		utils.RuntimeStatus.RecordError(lib.RuntimeErrorDownload)
 		return nil, err
 	}
 
 	utils.RuntimeStatus.HTTPPackDownload.Add(1)
+	utils.DownloadHistory.Add(lib.DownloadRecord{
+		Source:      lib.DownloadSourceHTTP,
+		Kind:        lib.DownloadKindPack,
+		DisplayName: "HTTP API",
+		SetName:     stickerSet.Name,
+		SetTitle:    stickerSet.Title,
+		Format:      format,
+		FileCount:   stickerNum,
+		FileSize:    int64(len(zipData)),
+	})
 	return zipData, nil
 }
 

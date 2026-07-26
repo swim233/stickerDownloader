@@ -75,6 +75,17 @@ func answerExpiredCallback(callback *tgbotapi.CallbackQuery) {
 	}
 }
 
+// recordBotDownload adds a WebUI history record for a bot-triggered download.
+func recordBotDownload(callback *tgbotapi.CallbackQuery, record lib.DownloadRecord) {
+	record.Source = lib.DownloadSourceBot
+	if callback != nil && callback.From != nil {
+		record.UserID = callback.From.ID
+		record.UserName = callback.From.UserName
+		record.DisplayName = strings.TrimSpace(callback.From.FirstName + " " + callback.From.LastName)
+	}
+	utils.DownloadHistory.Add(record)
+}
+
 // ThisSender downloads a single sticker in the requested format.
 func (m MessageSender) ThisSender(format lib.TaskFileFormat, u tgbotapi.Update) error {
 	callback := u.CallbackQuery
@@ -101,10 +112,23 @@ func (m MessageSender) ThisSender(format lib.TaskFileFormat, u tgbotapi.Update) 
 	replyMsgID := replyMsg.MessageID
 	fileID := sticker.FileID
 	fileSize := sticker.FileSize
-	stickerName := sticker.SetName
+	setName := sticker.SetName
+	stickerEmoji := sticker.Emoji
 	isVideo := sticker.IsVideo
+	stickerName := setName
 	if stickerName == "" {
 		stickerName = "sticker"
+	}
+	recordSingle := func(size int64, format lib.TaskFileFormat) {
+		recordBotDownload(callback, lib.DownloadRecord{
+			Kind:          lib.DownloadKindSingle,
+			SetName:       setName,
+			StickerFileID: fileID,
+			StickerEmoji:  stickerEmoji,
+			Format:        format.String(),
+			FileCount:     1,
+			FileSize:      size,
+		})
 	}
 
 	runtimeguard.Go("single-sticker-download", runtimeguard.Task, func() {
@@ -118,6 +142,7 @@ func (m MessageSender) ThisSender(format lib.TaskFileFormat, u tgbotapi.Update) 
 			msg.ReplyToMessageID = replyMsgID
 			utils.RuntimeStatus.SingleDownload.Add(1)
 			db.RecordUserData(u, int64(fileSize), 1)
+			recordSingle(int64(fileSize), format)
 			core.Bot.Send(msg)
 			callback.Delete()
 			return
@@ -135,6 +160,7 @@ func (m MessageSender) ThisSender(format lib.TaskFileFormat, u tgbotapi.Update) 
 			})
 			msg.ReplyToMessageID = replyMsgID
 			utils.RuntimeStatus.SingleDownload.Add(1)
+			recordSingle(int64(len(data)), format)
 			core.Bot.Send(msg)
 		} else {
 			webp, err := dl.DownloadFile(fileID)
@@ -151,6 +177,7 @@ func (m MessageSender) ThisSender(format lib.TaskFileFormat, u tgbotapi.Update) 
 			})
 			msg.ReplyToMessageID = replyMsgID
 			utils.RuntimeStatus.SingleDownload.Add(1)
+			recordSingle(int64(len(data)), format)
 			core.Bot.Send(msg)
 		}
 		callback.Delete()
@@ -312,6 +339,7 @@ func (m MessageSender) ZipSender(format lib.TaskFileFormat, u tgbotapi.Update) e
 		var requestFile tgbotapi.RequestFileData
 		var fileSize int64
 		var stickerNum int
+		var cacheHit bool
 
 		// Check cache
 		fileID, cachedSize, cachedNum, err := cache.GetCacheFileID(stickerSet, format)
@@ -319,6 +347,7 @@ func (m MessageSender) ZipSender(format lib.TaskFileFormat, u tgbotapi.Update) e
 			requestFile = tgbotapi.FileID(fileID)
 			fileSize = cachedSize
 			stickerNum = cachedNum
+			cacheHit = true
 			utils.RuntimeStatus.CacheHits.Add(1)
 			logger.Info("缓存命中: %s", stickerSet.Name)
 		} else {
@@ -377,6 +406,15 @@ func (m MessageSender) ZipSender(format lib.TaskFileFormat, u tgbotapi.Update) e
 			// Record cache data
 			recordStickerCache(stickerSet, userID, format, message.Document.FileID, fileSize)
 		}
+		recordBotDownload(callback, lib.DownloadRecord{
+			Kind:      lib.DownloadKindPack,
+			SetName:   stickerSet.Name,
+			SetTitle:  stickerSet.Title,
+			Format:    format.String(),
+			FileCount: stickerNum,
+			FileSize:  fileSize,
+			CacheHit:  cacheHit,
+		})
 
 		u.CallbackQuery.Delete()
 	})

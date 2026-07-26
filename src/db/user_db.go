@@ -53,7 +53,7 @@ func InitDB() error {
 		return fmt.Errorf("数据库初始化: %w", err)
 	}
 	DB = database
-	if err := DB.AutoMigrate(&UserData{}, &StickerData{}); err != nil {
+	if err := DB.AutoMigrate(&UserData{}, &StickerData{}, &DownloadRecordData{}); err != nil {
 		return fmt.Errorf("数据库迁移: %w", err)
 	}
 	return nil

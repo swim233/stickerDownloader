@@ -20,7 +20,14 @@ func RunHTTPServer(ctx context.Context) error {
 		return nil
 	}
 
+	if config.WebUIPassword == "" {
+		logger.Warn("server.password 未配置，WebUI 数据接口将拒绝访问")
+	}
 	mux := http.NewServeMux()
+	mux.HandleFunc("/", handleIndex)
+	mux.HandleFunc("/api/login", handleLogin)
+	mux.HandleFunc("/api/status", requireAuth(handleAPIStatus))
+	mux.HandleFunc("/api/history", requireAuth(handleAPIHistory))
 	mux.HandleFunc("/stickerpack", handleStickerPack)
 	server := &http.Server{
 		Addr:              config.HTTPServerPort,

@@ -87,6 +87,7 @@ func runWorker(settings config.Settings, notifier *notify.Telegram) (exitCode in
 	generation := os.Getenv("STICKERDOWNLOADER_GENERATION")
 	startedAt := time.Now()
 	utils.RuntimeStatus.StartTime = startedAt
+	utils.DownloadHistory.SetCapacity(config.DownloadHistorySize)
 	defer func() {
 		if recovered := recover(); recovered != nil {
 			stack := debug.Stack()
@@ -107,6 +108,16 @@ func runWorker(settings config.Settings, notifier *notify.Telegram) (exitCode in
 		logger.Error("数据库初始化失败: %s", err)
 		return supervisor.ExitTemporary
 	}
+	if records, err := db.LoadRecentDownloadRecords(config.DownloadHistorySize); err != nil {
+		logger.Warn("加载历史下载记录失败: %s", err)
+	} else {
+		utils.DownloadHistory.Seed(records)
+	}
+	utils.DownloadHistory.SetPersist(func(record lib.DownloadRecord) {
+		if err := db.SaveDownloadRecord(record, config.DownloadHistorySize); err != nil {
+			logger.Warn("保存下载记录失败: %s", err)
+		}
+	})
 	if err := core.InitBot(); err != nil {
 		logger.Error("Bot 初始化失败: %s", err)
 		return supervisor.ExitTemporary

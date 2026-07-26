@@ -31,6 +31,10 @@ var (
 	EnableHTTPServer bool
 	HTTPServerPort   string
 
+	// WebUI
+	DownloadHistorySize int
+	WebUIPassword       string
+
 	// Concurrency
 	MaxConcurrency int
 
@@ -65,6 +69,8 @@ type Settings struct {
 	JPEGQuality         int
 	EnableHTTPServer    bool
 	HTTPServerPort      string
+	DownloadHistorySize int
+	WebUIPassword       string
 	MaxConcurrency      int
 	MaxRetry            int
 	Notification        NotificationSettings
@@ -131,6 +137,8 @@ func Load(configPath string) (Settings, string, error) {
 		JPEGQuality:         v.GetInt("image.jpeg_quality"),
 		EnableHTTPServer:    v.GetBool("server.enabled"),
 		HTTPServerPort:      v.GetString("server.port"),
+		DownloadHistorySize: v.GetInt("server.history_size"),
+		WebUIPassword:       v.GetString("server.password"),
 		MaxConcurrency:      v.GetInt("download.max_concurrency"),
 		MaxRetry:            v.GetInt("download.max_retry"),
 		Notification: NotificationSettings{
@@ -166,6 +174,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("image.jpeg_quality", 100)
 	v.SetDefault("server.enabled", false)
 	v.SetDefault("server.port", ":8070")
+	v.SetDefault("server.history_size", 10)
 	v.SetDefault("download.max_concurrency", 30)
 	v.SetDefault("download.max_retry", 3)
 	v.SetDefault("notification.request_timeout", "8s")
@@ -196,6 +205,9 @@ func validate(s Settings) error {
 	if s.JPEGQuality < 0 || s.JPEGQuality > 100 {
 		validationErrors = append(validationErrors, errors.New("image.jpeg_quality 必须在 0 到 100 之间"))
 	}
+	if s.DownloadHistorySize <= 0 {
+		validationErrors = append(validationErrors, errors.New("server.history_size 必须大于 0"))
+	}
 	if s.MaxConcurrency <= 0 {
 		validationErrors = append(validationErrors, errors.New("download.max_concurrency 必须大于 0"))
 	}
@@ -224,6 +236,8 @@ func Apply(s Settings) {
 	JpegQuality = s.JPEGQuality
 	EnableHTTPServer = s.EnableHTTPServer
 	HTTPServerPort = s.HTTPServerPort
+	DownloadHistorySize = s.DownloadHistorySize
+	WebUIPassword = s.WebUIPassword
 	MaxConcurrency = s.MaxConcurrency
 	MaxRetry = s.MaxRetry
 	NotificationRequestTimeout = s.Notification.RequestTimeout
@@ -272,6 +286,8 @@ image:
 server:
   enabled: false
   port: ":8070"
+  history_size: 10
+  password: ""
 
 download:
   max_concurrency: 30
