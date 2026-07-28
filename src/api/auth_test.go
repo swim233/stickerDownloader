@@ -16,9 +16,13 @@ func setWebUIPassword(t *testing.T, password string) {
 	t.Cleanup(func() { config.WebUIPassword = old })
 }
 
+func newLoginBody(password string) *strings.Reader {
+	return strings.NewReader(`{"password":"` + password + `"}`)
+}
+
 func doLogin(t *testing.T, password string) *httptest.ResponseRecorder {
 	t.Helper()
-	req := httptest.NewRequest(http.MethodPost, "/api/login", strings.NewReader(`{"password":"`+password+`"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/login", newLoginBody(password))
 	rec := httptest.NewRecorder()
 	handleLogin(rec, req)
 	return rec

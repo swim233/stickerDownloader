@@ -15,4 +15,5 @@ type Translations struct {
 	Cancel                   string `json:"Cancel"`
 	SuccessChangeLanguage    string `json:"SuccessChangeLanguage"`
 	FailToDownload           string `json:"fail_to_download"`
+	YouAreBanned             string `json:"YouAreBanned"`
 }

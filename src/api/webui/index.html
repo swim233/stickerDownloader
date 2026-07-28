@@ -39,6 +39,21 @@
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
+
+/* Slim, themed scrollbars in place of the platform default. */
+* { scrollbar-width: thin; scrollbar-color: var(--scroll) transparent; }
+:root { --scroll: #C3D3E0; --scroll-hover: #9DB4C7; }
+@media (prefers-color-scheme: dark) {
+  :root { --scroll: #33465A; --scroll-hover: #46617C; }
+}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--scroll); border-radius: 999px;
+  border: 3px solid transparent; background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--scroll-hover); background-clip: content-box; }
+::-webkit-scrollbar-corner { background: transparent; }
 body {
   background: var(--bg);
   color: var(--ink);
@@ -77,19 +92,41 @@ button.refresh:focus-visible, a:focus-visible { outline: 2px solid var(--accent)
 .feed-head .cap { color: var(--ink-3); font-size: 12px; }
 
 .feed { list-style: none; display: flex; flex-direction: column; gap: 10px; }
-.msg { display: flex; gap: 12px; align-items: flex-start; }
+.msg { display: flex; gap: 10px; align-items: flex-start; }
+
+.avatar {
+  position: relative; flex: none; width: 40px; height: 40px; border-radius: 50%; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 16px; font-weight: 650; user-select: none;
+  background: var(--ink-3);
+}
+/* The photo covers the initial once it loads, so there's no layout shift. */
+.avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.avatar.clickable { cursor: pointer; }
+.avatar.clickable:hover { filter: brightness(1.1); }
+.avatar.clickable:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .stk {
   flex: none; width: 52px; height: 52px; border-radius: 14px;
   background: var(--accent-soft);
   display: flex; align-items: center; justify-content: center;
-  font-size: 28px; user-select: none;
+  font-size: 28px; user-select: none; overflow: hidden;
 }
+.stk img, .stk video { width: 100%; height: 100%; object-fit: contain; }
+.stk .lottie, .set-grid .cell .lottie { width: 100%; height: 100%; }
+.set-grid .cell video { width: 100%; height: 100%; object-fit: contain; }
 .bubble {
   position: relative; background: var(--card); border: 1px solid var(--line);
-  border-radius: 4px 16px 16px 16px; padding: 10px 14px 9px; min-width: 0; flex: 1;
+  border-radius: 16px 4px 16px 16px; padding: 10px 14px 9px; min-width: 0; flex: 1;
 }
+.bubble.openable { cursor: pointer; }
+.bubble.openable:hover, .bubble.openable:focus-visible { border-color: var(--accent); }
+.bubble.openable:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.bubble .open-hint { float: right; color: var(--ink-3); font-size: 12px; margin-left: 8px; }
 .bubble .who { font-weight: 650; font-size: 14px; }
 .bubble .who .at { color: var(--accent-deep); font-weight: 500; }
+.who-btn { cursor: pointer; border-radius: 6px; }
+.who-btn:hover { text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; }
+.who-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .bubble .what { font-size: 14px; margin-top: 1px; overflow-wrap: anywhere; }
 .bubble .what b { font-weight: 650; }
 .bubble .what .set { color: var(--accent-deep); }
@@ -141,6 +178,221 @@ footer a { color: var(--accent-deep); text-decoration: none; }
 .login-card button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .login-card .err { color: var(--bad); font-size: 13px; text-align: center; margin-top: 10px; min-height: 1.2em; }
 
+.bans { margin-top: 32px; }
+.ban-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.ban-item {
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 14px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+}
+.ban-item .avatar { width: 28px; height: 28px; font-size: 12px; align-self: center; }
+.ban-item .uid { font-weight: 650; }
+.ban-item .reason { color: var(--ink-2); font-size: 13px; overflow-wrap: anywhere; }
+.ban-item .when { margin-left: auto; color: var(--ink-3); font-size: 12px; white-space: nowrap; }
+.chip.silent { color: var(--bad); background: var(--bad-soft); border-color: transparent; }
+
+.set-overlay {
+  position: fixed; inset: 0; z-index: 20;
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  display: none; align-items: center; justify-content: center; padding: 16px;
+}
+.set-overlay.show { display: flex; }
+.set-card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 18px;
+  width: 100%; max-width: 560px; max-height: 82vh; display: flex; flex-direction: column;
+}
+.set-card .head {
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 16px 18px 12px; border-bottom: 1px solid var(--line);
+}
+.set-card .head h3 { font-size: 16px; min-width: 0; overflow-wrap: anywhere; }
+.set-card .head .cnt { color: var(--ink-3); font-size: 12px; white-space: nowrap; }
+.set-card .close {
+  margin-left: auto; border: none; background: none; color: var(--ink-2);
+  font-size: 20px; line-height: 1; cursor: pointer; padding: 2px 6px; border-radius: 8px;
+}
+.set-card .close:hover { color: var(--ink); }
+.set-card .close:focus-visible { outline: 2px solid var(--accent); }
+.set-grid {
+  overflow-y: auto; padding: 14px 18px 18px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 8px;
+}
+.set-grid .cell {
+  aspect-ratio: 1; border-radius: 12px; background: var(--accent-soft);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px; overflow: hidden; user-select: none;
+}
+.set-grid .cell img { width: 100%; height: 100%; object-fit: contain; }
+.set-grid .state { grid-column: 1 / -1; color: var(--ink-2); font-size: 13px; text-align: center; padding: 20px 0; }
+
+.ban-item.openable { cursor: pointer; }
+.ban-item.openable:hover, .ban-item.openable:focus-visible { border-color: var(--accent); }
+.ban-item.openable:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.user-body { overflow-y: auto; padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 16px; }
+.set-card .head .avatar { width: 30px; height: 30px; font-size: 13px; align-self: center; }
+.board .avatar { width: 24px; height: 24px; font-size: 11px; align-self: center; }
+.u-state { color: var(--ink-2); font-size: 13px; text-align: center; padding: 12px 0; }
+.u-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.u-stat { background: var(--bg); border-radius: 12px; padding: 10px 12px; }
+.u-stat .v { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
+.u-stat .l { font-size: 12px; color: var(--ink-2); margin-top: 1px; }
+.u-meta { color: var(--ink-2); font-size: 12.5px; line-height: 1.7; }
+.u-banned {
+  background: var(--bad-soft); color: var(--bad); border-radius: 10px;
+  padding: 8px 12px; font-size: 13px; overflow-wrap: anywhere;
+}
+.u-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.u-actions input {
+  flex: 1; min-width: 140px; padding: 7px 10px; font-size: 13px; color: var(--ink);
+  background: var(--bg); border: 1px solid var(--line); border-radius: 9px;
+}
+.u-actions input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+.u-actions button {
+  padding: 7px 12px; font-size: 13px; font-weight: 600; border-radius: 9px;
+  cursor: pointer; border: 1px solid var(--line); background: var(--card);
+}
+.u-actions button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.u-actions .danger { color: var(--bad); }
+.u-actions .danger:hover { border-color: var(--bad); }
+.u-actions .safe { color: var(--ok); }
+.u-actions .safe:hover { border-color: var(--ok); }
+.u-actions .note { width: 100%; color: var(--bad); font-size: 12.5px; min-height: 1em; }
+
+.board h4 { font-size: 13.5px; margin-bottom: 8px; }
+.board ol { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.board li {
+  display: flex; align-items: baseline; gap: 10px; font-size: 13.5px;
+  padding: 6px 10px; border-radius: 9px;
+}
+.board li.me { background: var(--accent-soft); }
+.board .rk { color: var(--ink-3); font-size: 12px; width: 1.6em; text-align: right; flex: none; }
+.board li:nth-child(1) .rk, .board li:nth-child(2) .rk, .board li:nth-child(3) .rk { color: var(--accent-deep); font-weight: 700; }
+.board .nm { min-width: 0; overflow-wrap: anywhere; }
+.board .nm .at { color: var(--accent-deep); font-size: 12.5px; }
+.board .dl { margin-left: auto; color: var(--ink-2); font-size: 12.5px; white-space: nowrap; }
+
+.tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--line); }
+.tabs button {
+  border: none; background: none; cursor: pointer; color: var(--ink-2);
+  font-size: 14px; font-weight: 600; padding: 8px 14px; border-radius: 8px 8px 0 0;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.tabs button:hover { color: var(--ink); }
+.tabs button[aria-selected="true"] { color: var(--accent-deep); border-bottom-color: var(--accent); }
+.tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.rank-limit { color: var(--ink-2); font-size: 12.5px; }
+.rank-limit select {
+  background: var(--card); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 8px; padding: 3px 6px; font-size: 12.5px; margin: 0 2px;
+}
+.rank-limit select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.rank-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+/* A grid, not flex: every column keeps the same width across rows, so the
+   bars line up no matter how long a display name is. */
+.rank-row {
+  display: grid;
+  grid-template-columns: 2.2em auto minmax(0, 1fr) 110px 108px;
+  align-items: center; gap: 12px; cursor: pointer;
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 9px 14px;
+}
+.rank-row:hover, .rank-row:focus-visible { border-color: var(--accent); }
+.rank-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.rank-row .pos { text-align: right; color: var(--ink-3); font-size: 13px; font-weight: 700; }
+.rank-row:nth-child(1) .pos, .rank-row:nth-child(2) .pos, .rank-row:nth-child(3) .pos { color: var(--accent-deep); font-size: 15px; }
+.rank-row .who { min-width: 0; font-weight: 600; font-size: 14px; }
+/* Long names truncate rather than wrap, keeping every row the same height. */
+.rank-row .who .nm { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank-row .who .at { color: var(--accent-deep); font-weight: 500; font-size: 13px; }
+.rank-row .who .uid { display: block; color: var(--ink-3); font-size: 11.5px; font-weight: 400; }
+.rank-row .stat { text-align: right; }
+.rank-row .stat .files { font-weight: 650; font-size: 14px; }
+.rank-row .stat .size { color: var(--ink-2); font-size: 12px; }
+.rank-row .bar {
+  height: 5px; border-radius: 999px; background: var(--accent-soft); overflow: hidden;
+}
+.rank-row .bar i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.rank-row .stat .metric { color: var(--accent-deep); }
+
+.rank-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.rank-search {
+  flex: 1 1 220px; min-width: 0; padding: 7px 12px; font-size: 13.5px; color: var(--ink);
+  background: var(--card); border: 1px solid var(--line); border-radius: 9px;
+}
+.rank-search:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+.seg button {
+  border: none; background: var(--card); color: var(--ink-2); cursor: pointer;
+  font-size: 13px; font-weight: 600; padding: 7px 13px;
+}
+.seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.seg button:not([aria-pressed="true"]):hover { color: var(--ink); }
+.seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+@media (max-width: 620px) {
+  .rank-row { grid-template-columns: 2em auto minmax(0, 1fr) 96px; }
+  .rank-row .bar { display: none; }
+}
+
+.settings-note {
+  background: var(--bad-soft); color: var(--bad); border-radius: 10px;
+  padding: 9px 14px; font-size: 13px; margin-bottom: 14px;
+}
+.set-group { margin-bottom: 22px; }
+.set-group h3 {
+  font-size: 13px; font-weight: 700; color: var(--ink-2); text-transform: uppercase;
+  letter-spacing: 0.06em; margin-bottom: 8px;
+}
+.set-row {
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  padding: 11px 14px; margin-bottom: 8px;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 260px); gap: 10px 16px; align-items: center;
+}
+.set-row.changed { border-color: var(--accent); background: var(--accent-soft); }
+.set-row.is-danger { border-left: 3px solid var(--bad); }
+.set-row .name { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.set-row .key { font-size: 11.5px; color: var(--ink-3); font-weight: 400; }
+.set-row .help { font-size: 12px; color: var(--ink-2); margin-top: 2px; }
+.set-row .warn-text { font-size: 12px; color: var(--bad); margin-top: 3px; }
+.set-row input[type="text"], .set-row input[type="password"], .set-row select {
+  width: 100%; padding: 7px 10px; font-size: 13.5px; color: var(--ink);
+  background: var(--bg); border: 1px solid var(--line); border-radius: 9px;
+}
+.set-row input:focus-visible, .set-row select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+.set-row .switch { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ink-2); }
+.set-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+.tag {
+  font-size: 11px; border-radius: 999px; padding: 1px 7px; white-space: nowrap;
+  border: 1px solid var(--line); color: var(--ink-2);
+}
+.tag.hot { color: var(--ok); background: var(--ok-soft); border-color: transparent; }
+.tag.restart { color: var(--accent-deep); background: var(--accent-soft); border-color: transparent; }
+.tag.manual { color: var(--ink-2); }
+.tag.danger { color: var(--bad); background: var(--bad-soft); border-color: transparent; }
+
+.settings-bar {
+  position: sticky; bottom: 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  background: var(--bg); border-top: 1px solid var(--line); padding: 12px 0;
+}
+.settings-bar button {
+  padding: 8px 16px; font-size: 13.5px; font-weight: 650; border-radius: 9px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--card); color: var(--ink);
+}
+.settings-bar button:disabled { opacity: 0.5; cursor: not-allowed; }
+.settings-bar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.settings-bar .primary { background: var(--accent); border-color: transparent; color: #fff; }
+.settings-bar .primary:hover:not(:disabled) { background: var(--accent-deep); }
+.settings-bar .warn { color: var(--bad); }
+.settings-bar .warn:hover:not(:disabled) { border-color: var(--bad); }
+.settings-status { font-size: 13px; color: var(--ink-2); }
+.settings-status.ok { color: var(--ok); }
+.settings-status.bad { color: var(--bad); }
+
+@media (max-width: 560px) {
+  .set-row { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 480px) {
   .tiles { grid-template-columns: repeat(2, 1fr); }
   .toolbar { margin-left: 0; }
@@ -163,23 +415,107 @@ footer a { color: var(--accent-deep); text-decoration: none; }
   </header>
   <p class="meta" id="meta">加载中…</p>
 
+  <nav class="tabs" id="tabs" role="tablist" aria-label="页面切换">
+    <button role="tab" data-tab="dashboard" aria-selected="true">面板</button>
+    <button role="tab" data-tab="ranking" aria-selected="false">排行榜</button>
+    <button role="tab" data-tab="settings" aria-selected="false">设置</button>
+  </nav>
+
   <div class="error-banner" id="error-banner"></div>
 
-  <section class="tiles" id="tiles" aria-label="运行统计"></section>
+  <div class="page" id="page-dashboard" role="tabpanel">
+    <section class="tiles" id="tiles" aria-label="运行统计"></section>
 
-  <section aria-label="最近下载">
-    <div class="feed-head">
-      <h2>最近下载</h2>
-      <span class="cap" id="cap"></span>
-    </div>
-    <ol class="feed" id="feed"></ol>
-    <div class="empty" id="empty" hidden>
-      <div class="big">📭</div>
-      还没有下载记录 — 给机器人发送一个贴纸，记录会出现在这里
-    </div>
-  </section>
+    <section aria-label="最近下载">
+      <div class="feed-head">
+        <h2>最近下载</h2>
+        <span class="cap" id="cap"></span>
+      </div>
+      <ol class="feed" id="feed"></ol>
+      <div class="empty" id="empty" hidden>
+        <div class="big">📭</div>
+        还没有下载记录 — 给机器人发送一个贴纸，记录会出现在这里
+      </div>
+    </section>
+
+    <section class="bans" aria-label="封禁用户">
+      <div class="feed-head">
+        <h2>封禁用户</h2>
+        <span class="cap" id="ban-count"></span>
+      </div>
+      <ul class="ban-list" id="ban-list"></ul>
+      <div class="empty" id="ban-empty" hidden>没有封禁用户 · 使用 /ban 或 /sban 命令封禁</div>
+    </section>
+  </div>
+
+  <div class="page" id="page-ranking" role="tabpanel" hidden>
+    <section aria-label="用户排行榜">
+      <div class="feed-head">
+        <h2>用户排行榜</h2>
+        <span class="cap" id="rank-total"></span>
+      </div>
+      <div class="rank-controls">
+        <input class="rank-search" id="rank-search" type="search" placeholder="搜索用户名、昵称或 ID"
+               aria-label="搜索用户" autocomplete="off" maxlength="64">
+        <div class="seg" role="group" aria-label="排序依据">
+          <button type="button" id="sort-files" data-sort="files" aria-pressed="true">按数量</button>
+          <button type="button" id="sort-size" data-sort="size" aria-pressed="false">按大小</button>
+        </div>
+        <label class="rank-limit">显示
+          <select id="rank-limit" aria-label="显示条数">
+            <option value="10">10</option>
+            <option value="25" selected>25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+          名
+        </label>
+      </div>
+      <ol class="rank-list" id="rank-list"></ol>
+      <div class="empty" id="rank-empty" hidden>暂无用户数据</div>
+    </section>
+  </div>
+
+  <div class="page" id="page-settings" role="tabpanel" hidden>
+    <section aria-label="设置">
+      <div class="feed-head">
+        <h2>设置</h2>
+        <span class="cap" id="settings-path"></span>
+      </div>
+      <div class="settings-note" id="settings-note" hidden></div>
+      <form id="settings-form"></form>
+      <div class="settings-bar">
+        <button type="button" class="primary" id="settings-save">保存修改</button>
+        <button type="button" id="settings-reset">放弃修改</button>
+        <button type="button" class="warn" id="settings-restart">重启 Worker</button>
+        <span class="settings-status" id="settings-status"></span>
+      </div>
+    </section>
+  </div>
 
   <footer>数据每 10 秒自动刷新 · HTTP 接口：<a href="api/status">api/status</a> · <a href="api/history">api/history</a></footer>
+</div>
+
+<div class="set-overlay" id="set-overlay">
+  <div class="set-card" role="dialog" aria-modal="true" aria-labelledby="set-title">
+    <div class="head">
+      <h3 id="set-title"></h3>
+      <span class="cnt" id="set-count"></span>
+      <button class="close" id="set-close" type="button" aria-label="关闭">×</button>
+    </div>
+    <div class="set-grid" id="set-grid"></div>
+  </div>
+</div>
+
+<div class="set-overlay" id="user-overlay">
+  <div class="set-card" role="dialog" aria-modal="true" aria-labelledby="user-title">
+    <div class="head">
+      <h3 id="user-title"></h3>
+      <span class="cnt num" id="user-id"></span>
+      <button class="close" id="user-close" type="button" aria-label="关闭">×</button>
+    </div>
+    <div class="user-body" id="user-body"></div>
+  </div>
 </div>
 
 <div class="login-overlay" id="login-overlay">
@@ -255,9 +591,124 @@ function stickerFace(r) {
   if (r.kind === "pack") return "📦";
   return "🖼️";
 }
+// Lottie player is fetched only the first time a .tgs sticker appears.
+let lottieLoader = null;
+function loadLottie() {
+  if (window.lottie) return Promise.resolve(window.lottie);
+  if (!lottieLoader) {
+    lottieLoader = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "static/lottie.js";
+      script.onload = () => resolve(window.lottie);
+      script.onerror = () => { lottieLoader = null; reject(new Error("播放器加载失败")); };
+      document.head.append(script);
+    });
+  }
+  return lottieLoader;
+}
+
+// playTGS renders a .tgs sticker (server-side unzipped to Lottie JSON).
+async function playTGS(box, fileID, fallback) {
+  try {
+    const [lottie, resp] = await Promise.all([
+      loadLottie(),
+      fetch("api/sticker?file_id=" + encodeURIComponent(fileID))
+    ]);
+    if (!resp.ok) throw new Error("获取动画失败");
+    const animationData = await resp.json();
+    box.textContent = "";
+    const mount = el("div", "lottie");
+    box.append(mount);
+    lottie.loadAnimation({
+      container: mount, renderer: "svg", loop: true,
+      autoplay: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+      animationData
+    });
+  } catch {
+    box.textContent = fallback;
+  }
+}
+
+// stickerTile renders the real sticker media: a still image, a looping video
+// for webm stickers, or a Lottie animation for .tgs. Falls back to the emoji
+// whenever the media can't be shown (expired file, network error).
+function stickerTile(cls, fileID, fallback, opts) {
+  const { isVideo = false, isAnimated = false } = opts || {};
+  const box = el("div", cls, fileID ? "" : fallback);
+  if (!fileID) return box;
+
+  if (isAnimated) {
+    box.textContent = fallback;
+    playTGS(box, fileID, fallback);
+    return box;
+  }
+
+  const src = "api/sticker?file_id=" + encodeURIComponent(fileID);
+  if (isVideo) {
+    const video = document.createElement("video");
+    video.autoplay = true;
+    video.loop = true;
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "metadata";
+    video.onerror = () => { video.remove(); box.textContent = fallback; };
+    video.src = src;
+    box.append(video);
+    return box;
+  }
+
+  const img = document.createElement("img");
+  img.loading = "lazy";
+  img.alt = "";
+  img.onerror = () => { img.remove(); box.textContent = fallback; };
+  img.src = src;
+  box.append(img);
+  return box;
+}
 function whoText(r) {
   if (r.source === "http") return r.display_name || "HTTP API";
   return r.display_name || (r.user_id ? "用户 " + r.user_id : "未知用户");
+}
+
+// Telegram-style fallback palette, keyed off the user ID so a person keeps
+// the same color everywhere on the page.
+const AVATAR_COLORS = ["#E17076", "#7BC862", "#E5CA77", "#65AADD", "#A695E7", "#EE7AAE", "#6EC9CB", "#FAA774"];
+function initialOf(name) {
+  const trimmed = (name || "").trim();
+  if (!trimmed) return "?";
+  // Intl.Segmenter keeps emoji and surrogate pairs intact.
+  if (window.Intl && Intl.Segmenter) {
+    const [first] = new Intl.Segmenter().segment(trimmed);
+    if (first) return first.segment.toUpperCase();
+  }
+  return [...trimmed][0].toUpperCase();
+}
+// avatarNode builds an avatar that shows the Telegram photo when one exists
+// and falls back to the initial on a stable per-user color.
+function avatarNode(userID, name, onOpen) {
+  const box = el("div", "avatar", initialOf(name));
+  if (userID) box.style.background = AVATAR_COLORS[Math.abs(Number(userID)) % AVATAR_COLORS.length];
+  box.setAttribute("aria-hidden", "true");
+  if (userID) {
+    const img = document.createElement("img");
+    img.loading = "lazy";
+    img.alt = "";
+    img.onerror = () => img.remove();
+    img.src = "api/avatar?user_id=" + encodeURIComponent(userID);
+    box.append(img);
+  }
+  if (onOpen) {
+    box.classList.add("clickable");
+    box.tabIndex = 0;
+    box.removeAttribute("aria-hidden");
+    box.setAttribute("role", "button");
+    box.setAttribute("aria-label", "查看用户 " + (name || userID) + " 的详情");
+    box.addEventListener("click", e => { e.stopPropagation(); onOpen(); });
+    box.addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onOpen(); }
+    });
+  }
+  return box;
 }
 
 function renderHistory(h) {
@@ -268,11 +719,32 @@ function renderHistory(h) {
   $("empty").hidden = records.length > 0;
   for (const r of records) {
     const li = el("li", "msg");
-    li.append(el("div", "stk", stickerFace(r)));
+    li.append(avatarNode(r.user_id, whoText(r), r.user_id ? () => openUser(r.user_id) : null));
     const bubble = el("div", "bubble");
+    if (r.kind === "pack" && r.set_name) {
+      bubble.classList.add("openable");
+      bubble.tabIndex = 0;
+      bubble.setAttribute("role", "button");
+      bubble.setAttribute("aria-label", "查看贴纸包 " + (r.set_title || r.set_name) + " 的全部贴纸");
+      bubble.append(el("span", "open-hint", "查看全部 ›"));
+      const open = () => openStickerSet(r.set_name, r.set_title);
+      bubble.addEventListener("click", open);
+      bubble.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
+    }
 
-    const who = el("div", "who", whoText(r));
-    if (r.user_name) who.append(" ", Object.assign(el("span", "at", "@" + r.user_name)));
+    const who = el("div", "who");
+    const whoLabel = el("span", null, whoText(r));
+    if (r.user_name) whoLabel.append(" ", el("span", "at", "@" + r.user_name));
+    if (r.user_id) {
+      whoLabel.className = "who-btn";
+      whoLabel.tabIndex = 0;
+      whoLabel.setAttribute("role", "button");
+      whoLabel.setAttribute("aria-label", "查看用户 " + whoText(r) + " 的详情");
+      const open = e => { e.stopPropagation(); openUser(r.user_id); };
+      whoLabel.addEventListener("click", open);
+      whoLabel.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(e); } });
+    }
+    who.append(whoLabel);
     bubble.append(who);
 
     const what = el("div", "what");
@@ -293,24 +765,570 @@ function renderHistory(h) {
     if (r.file_size) chips.append(el("span", "chip", fmtBytes(r.file_size)));
     if (r.cache_hit) chips.append(el("span", "chip cache", "缓存命中"));
     if (r.source === "http") chips.append(el("span", "chip", "HTTP"));
-    chips.append(el("span", "chip time", fmtTime(r.time)));
+    const timeChip = el("span", "chip time", fmtTime(r.time));
+    timeChip.dataset.iso = r.time;
+    chips.append(timeChip);
     bubble.append(chips);
 
-    li.append(bubble);
+    li.append(bubble, stickerTile(
+      "stk",
+      r.kind === "single" ? r.sticker_file_id : "",
+      stickerFace(r),
+      { isVideo: r.is_video, isAnimated: r.is_animated }
+    ));
     feed.append(li);
   }
 }
+
+function renderBans(data) {
+  const bans = data.bans || [];
+  $("ban-count").textContent = bans.length ? bans.length + " 个" : "";
+  $("ban-empty").hidden = bans.length > 0;
+  const list = $("ban-list");
+  list.replaceChildren();
+  for (const ban of bans) {
+    const li = el("li", "ban-item openable");
+    li.tabIndex = 0;
+    li.setAttribute("role", "button");
+    li.setAttribute("aria-label", "查看用户 " + ban.user_id + " 的详情");
+    li.append(avatarNode(ban.user_id, String(ban.user_id), null));
+    li.append(el("span", "uid num", String(ban.user_id)));
+    if (ban.silent) li.append(el("span", "chip silent", "静默"));
+    li.append(el("span", "reason", ban.reason || "默认原因（您已被封禁）"));
+    const when = el("span", "when", fmtTime(ban.banned_at));
+    when.dataset.iso = ban.banned_at;
+    li.append(when);
+    li.addEventListener("click", () => openUser(ban.user_id));
+    li.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openUser(ban.user_id); } });
+    list.append(li);
+  }
+}
+
+let setRequestID = 0;
+async function openStickerSet(name, title) {
+  const requestID = ++setRequestID;
+  $("set-title").textContent = title || name;
+  $("set-count").textContent = "";
+  $("set-grid").replaceChildren(el("div", "state", "加载中…"));
+  $("set-overlay").classList.add("show");
+  $("set-close").focus();
+  try {
+    const resp = await fetch("api/stickerset?name=" + encodeURIComponent(name));
+    if (!resp.ok) {
+      const body = await resp.json().catch(() => ({}));
+      throw new Error(body.error || "接口返回 " + resp.status);
+    }
+    const set = await resp.json();
+    if (requestID !== setRequestID) return;
+    $("set-title").textContent = set.title || name;
+    $("set-count").textContent = set.stickers.length + " 张";
+    const grid = $("set-grid");
+    grid.replaceChildren();
+    for (const sticker of set.stickers) {
+      const fallback = sticker.emoji || (sticker.is_video ? "🎬" : "🧩");
+      grid.append(stickerTile("cell", sticker.file_id, fallback,
+        { isVideo: sticker.is_video, isAnimated: sticker.is_animated }));
+    }
+    if (!set.stickers.length) grid.append(el("div", "state", "贴纸包为空"));
+  } catch (err) {
+    if (requestID !== setRequestID) return;
+    $("set-grid").replaceChildren(el("div", "state", "加载失败：" + err.message));
+  }
+}
+function closeStickerSet() {
+  setRequestID++;
+  $("set-overlay").classList.remove("show");
+}
+$("set-close").addEventListener("click", closeStickerSet);
+$("set-overlay").addEventListener("click", e => { if (e.target === $("set-overlay")) closeStickerSet(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") { closeStickerSet(); closeUser(); } });
+
+function fmtDate(iso) {
+  if (!iso) return "—";
+  const t = new Date(iso);
+  return isNaN(t) ? iso : t.toLocaleString("zh-CN", { hour12: false });
+}
+function uStat(value, label) {
+  const s = el("div", "u-stat");
+  s.append(el("div", "v num", value), el("div", "l", label));
+  return s;
+}
+function nameOf(u) {
+  return u.display_name || (u.user_name ? "@" + u.user_name : "用户 " + u.user_id);
+}
+
+let userRequestID = 0;
+let currentUserID = 0;
+async function openUser(userID) {
+  const requestID = ++userRequestID;
+  currentUserID = userID;
+  $("user-title").textContent = "用户详情";
+  $("user-id").textContent = "ID " + userID;
+  $("user-body").replaceChildren(el("div", "u-state", "加载中…"));
+  $("user-overlay").classList.add("show");
+  $("user-close").focus();
+  try {
+    const resp = await fetch("api/user?user_id=" + userID);
+    if (!resp.ok) {
+      const body = await resp.json().catch(() => ({}));
+      throw new Error(body.error || "接口返回 " + resp.status);
+    }
+    const data = await resp.json();
+    if (requestID !== userRequestID) return;
+    renderUser(data);
+  } catch (err) {
+    if (requestID !== userRequestID) return;
+    $("user-body").replaceChildren(el("div", "u-state", "加载失败：" + err.message));
+  }
+}
+function closeUser() {
+  userRequestID++;
+  currentUserID = 0;
+  $("user-overlay").classList.remove("show");
+}
+$("user-close").addEventListener("click", closeUser);
+$("user-overlay").addEventListener("click", e => { if (e.target === $("user-overlay")) closeUser(); });
+
+function renderUser(data) {
+  const user = data.user;
+  const title = user.found ? nameOf(user) : "用户 " + user.user_id;
+  $("user-title").textContent = title;
+  const head = $("user-title").parentElement;
+  head.querySelector(".avatar")?.remove();
+  head.prepend(avatarNode(user.user_id, title, null));
+  const body = $("user-body");
+  body.replaceChildren();
+
+  if (user.found) {
+    const stats = el("div", "u-stats");
+    stats.append(
+      uStat(String(user.download_files), "下载贴纸数"),
+      uStat(fmtBytes(user.download_file_size), "下载贴纸大小"),
+      uStat(user.rank ? "#" + user.rank : "—", "历史排名"),
+      uStat(user.language || "—", "语言")
+    );
+    body.append(stats);
+    const meta = el("div", "u-meta");
+    meta.append("首次使用：" + fmtDate(user.create_time), document.createElement("br"), "最近下载：" + fmtDate(user.recent_download_time));
+    if (user.user_name) meta.append(document.createElement("br"), "用户名：@" + user.user_name);
+    body.append(meta);
+  } else {
+    body.append(el("div", "u-state", "该用户没有下载统计记录"));
+  }
+
+  if (data.ban) {
+    const banned = el("div", "u-banned");
+    banned.textContent = (data.ban.silent ? "已静默封禁" : "已封禁") + " · " +
+      (data.ban.reason || "默认原因（您已被封禁）") + " · " + fmtDate(data.ban.banned_at);
+    body.append(banned);
+  }
+
+  if (!user.is_owner) {
+    const actions = el("div", "u-actions");
+    const reasonInput = document.createElement("input");
+    reasonInput.placeholder = "封禁原因（可选）";
+    reasonInput.setAttribute("aria-label", "封禁原因");
+    const banButton = el("button", "danger", "封禁");
+    const sbanButton = el("button", "danger", "静默封禁");
+    const unbanButton = el("button", "safe", "解除封禁");
+    unbanButton.disabled = !data.ban;
+    const note = el("div", "note", "");
+    const act = async (path, payload, confirmText) => {
+      if (!window.confirm(confirmText)) return;
+      note.textContent = "";
+      try {
+        const resp = await fetch(path, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (!resp.ok) {
+          const body = await resp.json().catch(() => ({}));
+          throw new Error(body.error || "接口返回 " + resp.status);
+        }
+        await openUser(user.user_id);
+        refresh(true);
+      } catch (err) {
+        note.textContent = "操作失败：" + err.message;
+      }
+    };
+    banButton.addEventListener("click", () =>
+      act("api/user/ban", { user_id: user.user_id, reason: reasonInput.value, silent: false }, "确认封禁用户 " + user.user_id + "？"));
+    sbanButton.addEventListener("click", () =>
+      act("api/user/ban", { user_id: user.user_id, reason: reasonInput.value, silent: true }, "确认静默封禁用户 " + user.user_id + "？该用户的请求将被无视。"));
+    unbanButton.addEventListener("click", () =>
+      act("api/user/unban", { user_id: user.user_id }, "确认解除封禁用户 " + user.user_id + "？"));
+    actions.append(reasonInput, banButton, sbanButton, unbanButton, note);
+    body.append(actions);
+  }
+
+  const board = el("div", "board");
+  board.append(el("h4", null, "历史用户排行榜"));
+  const list = document.createElement("ol");
+  const leaderboard = data.leaderboard || [];
+  leaderboard.forEach((entry, index) => {
+    const li = el("li", entry.user_id === user.user_id ? "me" : null);
+    li.append(el("span", "rk num", String(index + 1)));
+    li.append(avatarNode(entry.user_id, nameOf(entry), null));
+    const name = el("span", "nm", nameOf(entry));
+    if (entry.display_name && entry.user_name) name.append(" ", el("span", "at", "@" + entry.user_name));
+    li.append(name);
+    li.append(el("span", "dl num", entry.download_files + " 张 · " + fmtBytes(entry.download_file_size)));
+    list.append(li);
+  });
+  if (!leaderboard.length) list.append(el("div", "u-state", "暂无数据"));
+  board.append(list);
+  body.append(board);
+}
+
+// ---- 标签页 ----
+let activeTab = "dashboard";
+function switchTab(tab) {
+  activeTab = tab;
+  for (const button of document.querySelectorAll("#tabs button")) {
+    button.setAttribute("aria-selected", String(button.dataset.tab === tab));
+  }
+  for (const name of ["dashboard", "ranking", "settings"]) {
+    $("page-" + name).hidden = name !== tab;
+  }
+  if (tab === "ranking") loadRanking();
+  if (tab === "settings") loadSettings();
+}
+for (const button of document.querySelectorAll("#tabs button")) {
+  button.addEventListener("click", () => switchTab(button.dataset.tab));
+}
+
+// ---- 排行榜 ----
+let rankSort = "files";
+let rankRequestID = 0;
+
+async function loadRanking() {
+  const requestID = ++rankRequestID;
+  const list = $("rank-list");
+  const query = $("rank-search").value.trim();
+  const params = new URLSearchParams({ limit: $("rank-limit").value, sort: rankSort });
+  if (query) params.set("q", query);
+
+  try {
+    const resp = await fetch("api/leaderboard?" + params);
+    if (!resp.ok) throw new Error("接口返回 " + resp.status);
+    const data = await resp.json();
+    if (requestID !== rankRequestID) return; // a newer search already fired
+
+    const users = data.users || [];
+    $("rank-total").textContent = query
+      ? "匹配 " + data.matched + " 名 · 共 " + data.total + " 名用户"
+      : (data.total ? "共 " + data.total + " 名用户" : "");
+    const empty = $("rank-empty");
+    empty.hidden = users.length > 0;
+    empty.textContent = query ? "没有匹配「" + query + "」的用户" : "暂无用户数据";
+
+    // The bar is relative to the metric actually being ranked on.
+    const metricOf = u => rankSort === "size" ? u.download_file_size : u.download_files;
+    const top = users.length ? Math.max(...users.map(metricOf)) : 0;
+
+    list.replaceChildren();
+    users.forEach((user, index) => {
+      const row = el("li", "rank-row");
+      row.tabIndex = 0;
+      row.setAttribute("role", "button");
+      row.setAttribute("aria-label", "查看用户 " + nameOf(user) + " 的详情");
+      row.append(el("span", "pos num", String(index + 1)));
+      row.append(avatarNode(user.user_id, nameOf(user), null));
+
+      const who = el("div", "who");
+      const name = el("span", "nm");
+      name.append(user.display_name || (user.user_name ? "@" + user.user_name : "用户"));
+      if (user.display_name && user.user_name) name.append(" ", el("span", "at", "@" + user.user_name));
+      who.append(name, el("span", "uid num", "ID " + user.user_id));
+      row.append(who);
+
+      const bar = el("div", "bar");
+      const fill = document.createElement("i");
+      fill.style.width = (top > 0 ? Math.max(4, metricOf(user) / top * 100) : 0) + "%";
+      bar.append(fill);
+      row.append(bar);
+
+      const stat = el("div", "stat");
+      const files = el("div", "files num", user.download_files + " 张");
+      const size = el("div", "size num", fmtBytes(user.download_file_size));
+      // Highlight whichever number the ranking is based on.
+      (rankSort === "size" ? size : files).classList.add("metric");
+      stat.append(files, size);
+      row.append(stat);
+
+      row.addEventListener("click", () => openUser(user.user_id));
+      row.addEventListener("keydown", e => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openUser(user.user_id); }
+      });
+      list.append(row);
+    });
+  } catch (err) {
+    if (requestID !== rankRequestID) return;
+    list.replaceChildren(el("div", "u-state", "加载失败：" + err.message));
+  }
+}
+
+for (const button of document.querySelectorAll(".seg [data-sort]")) {
+  button.addEventListener("click", () => {
+    if (rankSort === button.dataset.sort) return;
+    rankSort = button.dataset.sort;
+    for (const other of document.querySelectorAll(".seg [data-sort]")) {
+      other.setAttribute("aria-pressed", String(other.dataset.sort === rankSort));
+    }
+    loadRanking();
+  });
+}
+$("rank-limit").addEventListener("change", loadRanking);
+
+// Debounced so typing doesn't fire a query per keystroke.
+let searchTimer = null;
+$("rank-search").addEventListener("input", () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(loadRanking, 250);
+});
+$("rank-search").addEventListener("keydown", e => {
+  if (e.key === "Enter") { e.preventDefault(); clearTimeout(searchTimer); loadRanking(); }
+  if (e.key === "Escape" && $("rank-search").value) {
+    e.stopPropagation();
+    $("rank-search").value = "";
+    clearTimeout(searchTimer);
+    loadRanking();
+  }
+});
+
+// ---- 设置 ----
+const APPLY_LABEL = { hot: "立即生效", restart: "需重启", manual: "需手动重启进程" };
+let settingsData = [];
+
+function settingInput(spec) {
+  if (spec.type === "bool") {
+    const wrap = el("label", "switch");
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.checked = spec.value === "true";
+    box.dataset.key = spec.key;
+    const text = el("span", null, box.checked ? "已开启" : "已关闭");
+    box.addEventListener("change", () => {
+      text.textContent = box.checked ? "已开启" : "已关闭";
+      markChanged();
+    });
+    wrap.append(box, text);
+    return wrap;
+  }
+  if (spec.type === "select") {
+    const select = document.createElement("select");
+    select.dataset.key = spec.key;
+    for (const option of spec.options || []) {
+      const node = document.createElement("option");
+      node.value = node.textContent = option;
+      if (option === spec.value) node.selected = true;
+      select.append(node);
+    }
+    select.addEventListener("change", markChanged);
+    return select;
+  }
+  const input = document.createElement("input");
+  input.dataset.key = spec.key;
+  if (spec.type === "secret") {
+    input.type = "password";
+    input.value = "";
+    input.placeholder = spec.set ? spec.value + "（留空保持不变）" : "未设置";
+    input.autocomplete = "new-password";
+  } else {
+    input.type = "text";
+    input.value = spec.value;
+    if (spec.type === "int" || spec.type === "float") input.inputMode = "decimal";
+  }
+  input.addEventListener("input", markChanged);
+  return input;
+}
+
+// currentEdits collects only the fields the user actually changed.
+function currentEdits() {
+  const edits = {};
+  for (const spec of settingsData) {
+    const field = document.querySelector(`[data-key="${spec.key}"]`);
+    if (!field) continue;
+    if (spec.type === "bool") {
+      const value = String(field.checked);
+      if (value !== spec.value) edits[spec.key] = value;
+    } else if (spec.type === "secret") {
+      if (field.value !== "") edits[spec.key] = field.value;
+    } else if (field.value !== spec.value) {
+      edits[spec.key] = field.value;
+    }
+  }
+  return edits;
+}
+
+function markChanged() {
+  const edits = currentEdits();
+  for (const spec of settingsData) {
+    const field = document.querySelector(`[data-key="${spec.key}"]`);
+    field?.closest(".set-row")?.classList.toggle("changed", spec.key in edits);
+  }
+  const count = Object.keys(edits).length;
+  $("settings-save").disabled = count === 0;
+  $("settings-reset").disabled = count === 0;
+  setSettingsStatus(count ? count + " 项待保存" : "", "");
+}
+
+function setSettingsStatus(text, kind) {
+  const node = $("settings-status");
+  node.textContent = text;
+  node.className = "settings-status" + (kind ? " " + kind : "");
+}
+
+function renderSettings(data) {
+  settingsData = data.settings || [];
+  $("settings-path").textContent = data.config_path ? "配置文件 " + data.config_path : "";
+  const note = $("settings-note");
+  note.hidden = data.writable;
+  if (!data.writable) note.textContent = "配置文件不可写，保存会失败。请检查文件权限：" + (data.config_path || "路径未知");
+
+  const form = $("settings-form");
+  form.replaceChildren();
+  const sections = [];
+  for (const spec of settingsData) {
+    let group = sections.find(s => s.name === spec.section);
+    if (!group) {
+      group = { name: spec.section, specs: [] };
+      sections.push(group);
+    }
+    group.specs.push(spec);
+  }
+
+  for (const section of sections) {
+    const group = el("div", "set-group");
+    group.append(el("h3", null, section.name));
+    for (const spec of section.specs) {
+      const row = el("div", "set-row" + (spec.danger ? " is-danger" : ""));
+      const left = el("div");
+      const name = el("div", "name");
+      name.append(spec.label);
+      name.append(el("span", "tag " + spec.apply, APPLY_LABEL[spec.apply] || spec.apply));
+      if (spec.danger) name.append(el("span", "tag danger", "危险"));
+      name.append(el("span", "key", spec.key));
+      left.append(name);
+      if (spec.help) left.append(el("div", "help", spec.help));
+      if (spec.warning) left.append(el("div", "warn-text", "⚠ " + spec.warning));
+      row.append(left, settingInput(spec));
+      group.append(row);
+    }
+    form.append(group);
+  }
+  markChanged();
+}
+
+async function loadSettings() {
+  try {
+    const resp = await fetch("api/settings");
+    if (!resp.ok) throw new Error("接口返回 " + resp.status);
+    renderSettings(await resp.json());
+  } catch (err) {
+    $("settings-form").replaceChildren(el("div", "u-state", "加载失败：" + err.message));
+  }
+}
+
+$("settings-reset").addEventListener("click", () => loadSettings());
+
+$("settings-save").addEventListener("click", async () => {
+  const edits = currentEdits();
+  const keys = Object.keys(edits);
+  if (!keys.length) return;
+
+  // Dangerous keys get a second, explicit confirmation naming each one.
+  const dangerous = settingsData.filter(s => s.danger && s.key in edits);
+  if (dangerous.length) {
+    const list = dangerous.map(s => "· " + s.label + "（" + s.key + "）\n  " + (s.warning || "")).join("\n");
+    if (!window.confirm("以下是危险配置项，改错可能导致服务失联：\n\n" + list + "\n\n确认要保存吗？")) return;
+    if (!window.confirm("再次确认：保存对 " + dangerous.length + " 个危险项的修改？")) return;
+  } else if (!window.confirm("确认保存 " + keys.length + " 项修改？")) {
+    return;
+  }
+
+  $("settings-save").disabled = true;
+  setSettingsStatus("保存中…", "");
+  try {
+    const resp = await fetch("api/settings/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ updates: edits })
+    });
+    const body = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(body.error || "接口返回 " + resp.status);
+
+    const parts = ["已保存 " + body.saved.length + " 项"];
+    if (body.applied_now?.length) parts.push(body.applied_now.length + " 项已生效");
+    if (body.needs_restart?.length) parts.push(body.needs_restart.length + " 项需重启");
+    if (body.needs_manual?.length) parts.push(body.needs_manual.length + " 项需手动重启进程");
+    setSettingsStatus(parts.join("，"), "ok");
+
+    await loadSettings();
+    if (body.needs_restart?.length) {
+      if (window.confirm("有 " + body.needs_restart.length + " 项需要重启 Worker 才能生效，现在重启吗？")) {
+        await restartWorker();
+      }
+    }
+    refresh(true);
+  } catch (err) {
+    setSettingsStatus("保存失败：" + err.message, "bad");
+    $("settings-save").disabled = false;
+  }
+});
+
+async function restartWorker() {
+  setSettingsStatus("正在重启…", "");
+  try {
+    const resp = await fetch("api/restart", { method: "POST" });
+    const body = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(body.error || "接口返回 " + resp.status);
+    setSettingsStatus("重启中，几秒后自动恢复…", "ok");
+    // The worker exits and the supervisor brings it back; poll until it answers.
+    for (let i = 0; i < 20; i++) {
+      await new Promise(r => setTimeout(r, 1000));
+      try {
+        const probe = await fetch("api/status", { cache: "no-store" });
+        if (probe.ok) {
+          setSettingsStatus("已重启完成", "ok");
+          loadSettings();
+          refresh(true);
+          return;
+        }
+      } catch { /* worker still down, keep polling */ }
+    }
+    setSettingsStatus("重启超时，请检查服务端日志", "bad");
+  } catch (err) {
+    setSettingsStatus("重启失败：" + err.message, "bad");
+  }
+}
+
+$("settings-restart").addEventListener("click", () => {
+  if (window.confirm("确认重启 Worker？期间机器人会短暂不可用（约 2-3 秒）。")) restartWorker();
+});
 
 function showLogin(show) {
   $("login-overlay").classList.toggle("show", show);
   if (show) $("login-password").focus();
 }
 
-async function refresh() {
+// Each section re-renders only when its payload actually changed, so the
+// periodic refresh doesn't rebuild the DOM (and flash images) needlessly.
+const lastPayload = { status: "", history: "", bans: "" };
+function renderIfChanged(key, text, render, force) {
+  if (!force && lastPayload[key] === text) return;
+  lastPayload[key] = text;
+  render(JSON.parse(text));
+}
+
+async function refresh(force) {
   const banner = $("error-banner");
   try {
-    const [statusResp, historyResp] = await Promise.all([fetch("api/status"), fetch("api/history")]);
-    if (statusResp.status === 401 || historyResp.status === 401) {
+    const [statusResp, historyResp, bansResp] = await Promise.all([
+      fetch("api/status"), fetch("api/history"), fetch("api/bans")
+    ]);
+    if (statusResp.status === 401 || historyResp.status === 401 || bansResp.status === 401) {
       showLogin(true);
       return;
     }
@@ -318,9 +1336,12 @@ async function refresh() {
       const body = await statusResp.json().catch(() => ({}));
       throw new Error(body.error || "WebUI 已禁用");
     }
-    if (!statusResp.ok || !historyResp.ok) throw new Error("接口返回 " + statusResp.status + "/" + historyResp.status);
-    renderStatus(await statusResp.json());
-    renderHistory(await historyResp.json());
+    if (!statusResp.ok || !historyResp.ok || !bansResp.ok) {
+      throw new Error("接口返回 " + statusResp.status + "/" + historyResp.status + "/" + bansResp.status);
+    }
+    renderIfChanged("status", await statusResp.text(), renderStatus, force);
+    renderIfChanged("history", await historyResp.text(), renderHistory, force);
+    renderIfChanged("bans", await bansResp.text(), renderBans, force);
     showLogin(false);
     banner.style.display = "none";
     $("updated").textContent = "更新于 " + new Date().toTimeString().slice(0, 8);
@@ -347,14 +1368,25 @@ $("login-form").addEventListener("submit", async e => {
     }
     $("login-password").value = "";
     showLogin(false);
-    refresh();
+    refresh(true);
   } catch (err) {
     errorLine.textContent = "无法连接服务器：" + err.message;
   }
 });
 
-$("refresh").addEventListener("click", refresh);
-setInterval(() => { if (!document.hidden) refresh(); }, 10000);
+// Relative times ("x 分钟前") update in place so unchanged lists never rebuild.
+function updateTimes() {
+  for (const node of document.querySelectorAll("[data-iso]")) {
+    node.textContent = fmtTime(node.dataset.iso);
+  }
+}
+
+$("refresh").addEventListener("click", () => refresh(true));
+setInterval(() => {
+  if (document.hidden) return;
+  refresh();
+  updateTimes();
+}, 10000);
 refresh();
 </script>
 </body>

@@ -52,3 +52,9 @@ func (p *Policy) RecordCrash(startedAt, now time.Time) (delay time.Duration, coo
 func ShouldRestart(exitCode int) bool {
 	return exitCode != ExitOK && exitCode != ExitUsage && exitCode != ExitConfig
 }
+
+// IsIntentionalRestart reports whether the worker exited because it was asked
+// to restart, rather than because something went wrong.
+func IsIntentionalRestart(exitCode int) bool {
+	return exitCode == ExitRestart
+}

@@ -123,6 +123,7 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   int(sessionTTL.Seconds()),
 		HttpOnly: true,
+		Secure:   requestIsHTTPS(r),
 		SameSite: http.SameSiteStrictMode,
 	})
 	writeJSON(w, map[string]bool{"ok": true})

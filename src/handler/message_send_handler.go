@@ -115,6 +115,7 @@ func (m MessageSender) ThisSender(format lib.TaskFileFormat, u tgbotapi.Update) 
 	setName := sticker.SetName
 	stickerEmoji := sticker.Emoji
 	isVideo := sticker.IsVideo
+	isAnimated := sticker.IsAnimated
 	stickerName := setName
 	if stickerName == "" {
 		stickerName = "sticker"
@@ -125,6 +126,8 @@ func (m MessageSender) ThisSender(format lib.TaskFileFormat, u tgbotapi.Update) 
 			SetName:       setName,
 			StickerFileID: fileID,
 			StickerEmoji:  stickerEmoji,
+			IsVideo:       isVideo,
+			IsAnimated:    isAnimated,
 			Format:        format.String(),
 			FileCount:     1,
 			FileSize:      size,

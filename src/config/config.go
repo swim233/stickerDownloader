@@ -34,6 +34,8 @@ var (
 	// WebUI
 	DownloadHistorySize int
 	WebUIPassword       string
+	BehindProxy         bool
+	APIToken            string
 
 	// Concurrency
 	MaxConcurrency int
@@ -71,6 +73,8 @@ type Settings struct {
 	HTTPServerPort      string
 	DownloadHistorySize int
 	WebUIPassword       string
+	BehindProxy         bool
+	APIToken            string
 	MaxConcurrency      int
 	MaxRetry            int
 	Notification        NotificationSettings
@@ -139,6 +143,8 @@ func Load(configPath string) (Settings, string, error) {
 		HTTPServerPort:      v.GetString("server.port"),
 		DownloadHistorySize: v.GetInt("server.history_size"),
 		WebUIPassword:       v.GetString("server.password"),
+		BehindProxy:         v.GetBool("server.behind_proxy"),
+		APIToken:            v.GetString("server.api_token"),
 		MaxConcurrency:      v.GetInt("download.max_concurrency"),
 		MaxRetry:            v.GetInt("download.max_retry"),
 		Notification: NotificationSettings{
@@ -175,6 +181,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("server.enabled", false)
 	v.SetDefault("server.port", ":8070")
 	v.SetDefault("server.history_size", 10)
+	v.SetDefault("server.behind_proxy", false)
 	v.SetDefault("download.max_concurrency", 30)
 	v.SetDefault("download.max_retry", 3)
 	v.SetDefault("notification.request_timeout", "8s")
@@ -238,6 +245,8 @@ func Apply(s Settings) {
 	HTTPServerPort = s.HTTPServerPort
 	DownloadHistorySize = s.DownloadHistorySize
 	WebUIPassword = s.WebUIPassword
+	BehindProxy = s.BehindProxy
+	APIToken = s.APIToken
 	MaxConcurrency = s.MaxConcurrency
 	MaxRetry = s.MaxRetry
 	NotificationRequestTimeout = s.Notification.RequestTimeout
@@ -288,6 +297,8 @@ server:
   port: ":8070"
   history_size: 10
   password: ""
+  behind_proxy: false
+  api_token: ""
 
 download:
   max_concurrency: 30

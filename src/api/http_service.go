@@ -20,18 +20,28 @@ func RunHTTPServer(ctx context.Context) error {
 		return nil
 	}
 
-	if config.WebUIPassword == "" {
-		logger.Warn("server.password 未配置，WebUI 数据接口将拒绝访问")
-	}
+	logDeploymentWarnings()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handleIndex)
 	mux.HandleFunc("/api/login", handleLogin)
 	mux.HandleFunc("/api/status", requireAuth(handleAPIStatus))
 	mux.HandleFunc("/api/history", requireAuth(handleAPIHistory))
-	mux.HandleFunc("/stickerpack", handleStickerPack)
+	mux.HandleFunc("/api/bans", requireAuth(handleAPIBans))
+	mux.HandleFunc("/api/user", requireAuth(handleAPIUser))
+	mux.HandleFunc("/api/leaderboard", requireAuth(handleAPILeaderboard))
+	mux.HandleFunc("/api/settings", requireAuth(handleAPISettings))
+	mux.HandleFunc("/api/settings/update", requireAuth(handleAPISettingsUpdate))
+	mux.HandleFunc("/api/restart", requireAuth(handleAPIRestart))
+	mux.HandleFunc("/static/lottie.js", requireAuth(handleLottiePlayer))
+	mux.HandleFunc("/api/user/ban", requireAuth(handleAPIUserBan))
+	mux.HandleFunc("/api/user/unban", requireAuth(handleAPIUserUnban))
+	mux.HandleFunc("/api/sticker", requireAuth(handleAPISticker))
+	mux.HandleFunc("/api/avatar", requireAuth(handleAPIAvatar))
+	mux.HandleFunc("/api/stickerset", requireAuth(handleAPIStickerSet))
+	mux.HandleFunc("/stickerpack", requireAPIToken(handleStickerPack))
 	server := &http.Server{
 		Addr:              config.HTTPServerPort,
-		Handler:           mux,
+		Handler:           securityHeaders(mux),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
