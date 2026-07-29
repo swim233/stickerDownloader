@@ -10,6 +10,7 @@
 - ✔️ 支持贴纸格式转换（支持 `webp` / `png` / `jpeg`）  
 - ✔️ 支持下载进度条
 - ✔️ 提供 HTTP API 服务  
+- 支持 WebUI 管理控制台，可查看运行状态、下载记录、用户排行榜并管理配置
 - ✔️ 启用贴纸缓存，加快重复下载速度  
 - ✔️ 支持数据库记录用户数据
 - ✔️ 支持限制并发数
@@ -47,6 +48,31 @@ telegram:
 - 推荐始终使用绝对路径传入 `--config`，避免工作目录变化导致读取错误。
 
 完整的通知、重启和 HTTP 配置见 `config/config.example.yaml`。HTTP 服务器默认监听端口为 `8070`。
+
+## WebUI 管理控制台
+
+启用 HTTP 服务并设置访问密码后，可通过 `http://localhost:8070/` 打开 WebUI：
+
+```yaml
+server:
+  enabled: true
+  port: ":8070"
+  history_size: 10
+  password: "请设置高强度密码"
+  behind_proxy: false
+  api_token: ""
+```
+
+WebUI 当前支持：
+
+- 查看运行状态、错误统计和最近下载记录
+- 预览静态、WebM 和 TGS 动态贴纸
+- 查看并搜索用户排行榜及用户详情
+- 封禁、静默封禁或解封用户
+- 在线查看和修改配置；页面会标注配置是立即生效还是需要重启
+- 查看数据库大小及记录数量，导出数据库或从备份文件导入
+
+`server.password` 为空时，WebUI 数据接口会拒绝访问。部署在 HTTPS 反向代理后时，应将 `server.behind_proxy` 设为 `true`，以启用 Secure Cookie 和 HSTS。数据库导入会覆盖当前数据库；导入前程序会自动备份现有数据库，成功后重启 worker。
 
 ---
 
