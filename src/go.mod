@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/google/uuid v1.3.0
 	github.com/ijnkawakaze/telegram-bot-api v1.0.9
-	golang.org/x/image v0.26.0
+	golang.org/x/image v0.43.0
 	gorm.io/gorm v1.26.0
 )
 
@@ -42,5 +42,5 @@ require (
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/spf13/viper v1.21.0
 	go.uber.org/zap v1.27.1
-	golang.org/x/text v0.28.0 // indirect
+	golang.org/x/text v0.39.0 // indirect
 )
