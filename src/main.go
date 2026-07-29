@@ -108,6 +108,10 @@ func runWorker(settings config.Settings, notifier *notify.Telegram) (exitCode in
 		logger.Error("数据库初始化失败: %s", err)
 		return supervisor.ExitTemporary
 	}
+	if err := db.LoadBans(); err != nil {
+		logger.Error("加载封禁列表失败: %s", err)
+		return supervisor.ExitTemporary
+	}
 	if records, err := db.LoadRecentDownloadRecords(config.DownloadHistorySize); err != nil {
 		logger.Warn("加载历史下载记录失败: %s", err)
 	} else {
@@ -166,6 +170,10 @@ func runWorker(settings config.Settings, notifier *notify.Telegram) (exitCode in
 		logger.Info("收到停止信号")
 		core.Bot.StopReceivingUpdates()
 		return supervisor.ExitOK
+	case reason := <-lib.RestartRequests():
+		logger.Info("收到重启请求: %s", reason)
+		core.Bot.StopReceivingUpdates()
+		return supervisor.ExitRestart
 	case err := <-fatal:
 		logger.Error("关键组件退出: %s", err)
 		return supervisor.ExitCrash
@@ -207,6 +215,8 @@ func registerHandlers(b *tgbotapi.Bot, ms handler.MessageSender, guard *runtimeg
 		}
 	}
 
+	b.NewProcessor(handler.BannedUpdateMatch, wrap("banned-user", ms.BannedUserResponder))
+
 	b.NewProcessor(func(u tgbotapi.Update) bool {
 		if !isDownloadableStickerMessage(u.Message) {
 			return false
@@ -219,6 +229,9 @@ func registerHandlers(b *tgbotapi.Bot, ms handler.MessageSender, guard *runtimeg
 	b.NewPrivateCommandProcessor("help", wrap("command-help", ms.HelpMessage))
 	b.NewPrivateCommandProcessor("start", wrap("command-start", ms.StartMessage))
 	b.NewPrivateCommandProcessor("lang", wrap("command-lang", ms.LanguageChose))
+	b.NewPrivateCommandProcessor("ban", wrap("command-ban", ms.BanUser))
+	b.NewPrivateCommandProcessor("sban", wrap("command-sban", ms.SilentBanUser))
+	b.NewPrivateCommandProcessor("unban", wrap("command-unban", ms.UnbanUser))
 	b.NewCallBackProcessor(lib.SingleDownload.String(), wrap("callback-single", ms.ThisFormatChose))
 	b.NewCallBackProcessor("this", wrap("callback-this", ms.ThisFormatChose))
 	b.NewCallBackProcessor("zip", wrap("callback-zip", ms.ZipFormatChose))

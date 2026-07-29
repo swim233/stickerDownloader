@@ -22,6 +22,11 @@ server:
   history_size: 10
   # WebUI 访问密码，留空时数据接口拒绝访问
   password: ""
+  # 部署在 HTTPS 反向代理之后时设为 true：信任 X-Forwarded-Proto，
+  # 为会话 Cookie 加上 Secure 标记并启用 HSTS
+  behind_proxy: false
+  # /stickerpack 下载接口的访问令牌，留空则该接口对所有人开放
+  api_token: ""
 
 download:
   max_concurrency: 30

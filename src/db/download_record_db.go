@@ -19,6 +19,8 @@ type DownloadRecordData struct {
 	SetTitle      string
 	StickerFileID string
 	StickerEmoji  string
+	IsVideo       bool
+	IsAnimated    bool
 	Format        string
 	FileCount     int
 	FileSize      int64
@@ -37,6 +39,8 @@ func (d DownloadRecordData) toLib() lib.DownloadRecord {
 		SetTitle:      d.SetTitle,
 		StickerFileID: d.StickerFileID,
 		StickerEmoji:  d.StickerEmoji,
+		IsVideo:       d.IsVideo,
+		IsAnimated:    d.IsAnimated,
 		Format:        d.Format,
 		FileCount:     d.FileCount,
 		FileSize:      d.FileSize,
@@ -57,6 +61,8 @@ func SaveDownloadRecord(record lib.DownloadRecord, keep int) error {
 		SetTitle:      record.SetTitle,
 		StickerFileID: record.StickerFileID,
 		StickerEmoji:  record.StickerEmoji,
+		IsVideo:       record.IsVideo,
+		IsAnimated:    record.IsAnimated,
 		Format:        record.Format,
 		FileCount:     record.FileCount,
 		FileSize:      record.FileSize,
@@ -70,6 +76,13 @@ func SaveDownloadRecord(record lib.DownloadRecord, keep int) error {
 	}
 	newest := DB.Model(&DownloadRecordData{}).Select("id").Order("id DESC").Limit(keep)
 	return DB.Where("id NOT IN (?)", newest).Delete(&DownloadRecordData{}).Error
+}
+
+// CountDownloadRecords returns how many download records are stored.
+func CountDownloadRecords() (int64, error) {
+	var total int64
+	err := DB.Model(&DownloadRecordData{}).Count(&total).Error
+	return total, err
 }
 
 // LoadRecentDownloadRecords returns up to n persisted records, oldest first.

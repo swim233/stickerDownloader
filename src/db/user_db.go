@@ -9,6 +9,7 @@ import (
 
 	"github.com/glebarez/sqlite"
 	tgbotapi "github.com/ijnkawakaze/telegram-bot-api"
+	logger "github.com/swim233/StickerDownloader/logger"
 	"github.com/swim233/StickerDownloader/utils"
 	"gorm.io/gorm"
 )
@@ -53,7 +54,15 @@ func InitDB() error {
 		return fmt.Errorf("数据库初始化: %w", err)
 	}
 	DB = database
-	if err := DB.AutoMigrate(&UserData{}, &StickerData{}, &DownloadRecordData{}); err != nil {
+	// Older versions wrote duplicate ban rows because the table had no unique
+	// constraint. They must go before AutoMigrate adds the unique index, or
+	// creating that index fails on an upgraded database.
+	if removed, err := DedupeBans(); err != nil {
+		logger.Warn("清理重复封禁记录失败: %s", err)
+	} else if removed > 0 {
+		logger.Info("清理了 %d 条重复的封禁记录", removed)
+	}
+	if err := DB.AutoMigrate(&UserData{}, &StickerData{}, &DownloadRecordData{}, &BannedUserData{}); err != nil {
 		return fmt.Errorf("数据库迁移: %w", err)
 	}
 	return nil

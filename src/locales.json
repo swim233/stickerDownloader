@@ -10,7 +10,8 @@
         "StickerSetIsNull": "贴纸包为空！",
         "Cancel": "取消",
         "Help": "请将贴纸发送给我 我可以下载单个贴纸和贴纸包 并转换成不同的格式",
-        "SuccessChangeLanguage": "您的语言已切换为 中文"
+        "SuccessChangeLanguage": "您的语言已切换为 中文",
+        "YouAreBanned": "您已被封禁"
     },
     "en": {
         "CurrentStickerSet": "Current Sticker Pack",
@@ -23,7 +24,8 @@
         "StickerSetIsNull": "Sticker pack is empty!",
         "Cancel": "Cancel",
         "Help": "Please send me a sticker. I can download single stickers and sticker packs, and convert them into different formats.",
-        "SuccessChangeLanguage": "Your language has been switched to English."
+        "SuccessChangeLanguage": "Your language has been switched to English.",
+        "YouAreBanned": "You have been banned."
     },
     "jp": {
         "CurrentStickerSet": "現在のスタンプパック",
@@ -36,6 +38,7 @@
         "StickerSetIsNull": "スタンプパックが空です！",
         "Cancel": "キャンセル",
         "Help": "スタンプを私に送ってください。単一スタンプやスタンプパックをダウンロードし、異なる形式に変換できます。",
-        "SuccessChangeLanguage": "言語が日本語に切り替わりました"
+        "SuccessChangeLanguage": "言語が日本語に切り替わりました",
+        "YouAreBanned": "あなたは利用を禁止されました"
     }
 }

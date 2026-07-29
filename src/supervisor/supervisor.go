@@ -24,6 +24,10 @@ const (
 	ExitUsage     = 64
 	ExitTemporary = 75
 	ExitConfig    = 78
+	// ExitRestart is returned when the worker was asked to restart on purpose
+	// (e.g. from the WebUI settings page). The supervisor restarts it right
+	// away without a crash alert or backoff delay.
+	ExitRestart = 79
 )
 
 type Runner struct {
@@ -101,6 +105,10 @@ func (r *Runner) Run(parent context.Context) int {
 		if exitCode == ExitOK {
 			stopOnce.Do(func() { r.notify("stopped", generation, "🛑 StickerDownloader 已正常停止") })
 			return ExitOK
+		}
+		if exitCode == ExitRestart {
+			r.notify("restart-requested", generation, fmt.Sprintf("🔧 已按请求重启 StickerDownloader\nRun: %s\nGeneration: %d", r.RunID, generation))
+			continue
 		}
 		r.notify("crashed", generation, fmt.Sprintf("💥 Worker 意外退出\nRun: %s\nGeneration: %d\nPID: %d\n退出码: %d\n运行时长: %s", r.RunID, generation, cmd.Process.Pid, exitCode, time.Since(startedAt).Round(time.Second)))
 		if !ShouldRestart(exitCode) {

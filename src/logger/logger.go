@@ -14,12 +14,14 @@ import (
 var (
 	logger *zap.Logger
 	sugar  *zap.SugaredLogger
-	level  zap.AtomicLevel
+	// Initialized here rather than in InitLogger: a zero AtomicLevel holds a
+	// nil pointer, so SetLogLevel would panic if it ran first.
+	level = zap.NewAtomicLevelAt(zap.InfoLevel)
 )
 
 // InitLogger initializes the zap logger with console + file output.
 func InitLogger() {
-	level = zap.NewAtomicLevelAt(zap.DebugLevel)
+	level.SetLevel(zap.DebugLevel)
 
 	encoderConfig := zapcore.EncoderConfig{
 		TimeKey:          "Time",
@@ -80,19 +82,40 @@ func SetLogLevel(levelStr string) {
 	}
 }
 
-func Info(format string, v ...interface{}) {
+// fallback keeps logging from panicking before InitLogger has run — a log
+// call must never be the thing that takes a request down.
+func fallback(level, format string, v ...any) {
+	fmt.Fprintf(os.Stderr, "[%s] %s\n", level, fmt.Sprintf(format, v...))
+}
+
+func Info(format string, v ...any) {
+	if sugar == nil {
+		fallback("INFO", format, v...)
+		return
+	}
 	sugar.Infof(format, v...)
 }
 
-func Warn(format string, v ...interface{}) {
+func Warn(format string, v ...any) {
+	if sugar == nil {
+		fallback("WARN", format, v...)
+		return
+	}
 	sugar.Warnf(format, v...)
 }
 
-func Error(format string, v ...interface{}) {
+func Error(format string, v ...any) {
+	if sugar == nil {
+		fallback("ERROR", format, v...)
+		return
+	}
 	sugar.Errorf(format, v...)
 }
 
-func Debug(format string, v ...interface{}) {
+func Debug(format string, v ...any) {
+	if sugar == nil {
+		return
+	}
 	sugar.Debugf(format, v...)
 }
 
@@ -116,7 +139,7 @@ func NewBotAPILoggerAdapter(levelStr string) *BotAPILoggerAdapter {
 	return &BotAPILoggerAdapter{logLevel: l}
 }
 
-func (a *BotAPILoggerAdapter) Printf(format string, v ...interface{}) {
+func (a *BotAPILoggerAdapter) Printf(format string, v ...any) {
 	if sugar == nil {
 		return
 	}
@@ -132,7 +155,7 @@ func (a *BotAPILoggerAdapter) Printf(format string, v ...interface{}) {
 	}
 }
 
-func (a *BotAPILoggerAdapter) Println(v ...interface{}) {
+func (a *BotAPILoggerAdapter) Println(v ...any) {
 	msg := fmt.Sprint(v...)
 	a.Printf("%s", msg)
 }

@@ -28,6 +28,8 @@ type DownloadRecord struct {
 	SetTitle      string    `json:"set_title,omitempty"`
 	StickerFileID string    `json:"sticker_file_id,omitempty"`
 	StickerEmoji  string    `json:"sticker_emoji,omitempty"`
+	IsVideo       bool      `json:"is_video,omitempty"`
+	IsAnimated    bool      `json:"is_animated,omitempty"`
 	Format        string    `json:"format"`
 	FileCount     int       `json:"file_count"`
 	FileSize      int64     `json:"file_size"`
