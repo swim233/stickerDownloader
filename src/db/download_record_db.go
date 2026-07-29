@@ -78,6 +78,13 @@ func SaveDownloadRecord(record lib.DownloadRecord, keep int) error {
 	return DB.Where("id NOT IN (?)", newest).Delete(&DownloadRecordData{}).Error
 }
 
+// CountDownloadRecords returns how many download records are stored.
+func CountDownloadRecords() (int64, error) {
+	var total int64
+	err := DB.Model(&DownloadRecordData{}).Count(&total).Error
+	return total, err
+}
+
 // LoadRecentDownloadRecords returns up to n persisted records, oldest first.
 func LoadRecentDownloadRecords(n int) ([]lib.DownloadRecord, error) {
 	if n <= 0 {

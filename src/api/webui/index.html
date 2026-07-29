@@ -371,6 +371,38 @@ footer a { color: var(--accent-deep); text-decoration: none; }
 .tag.manual { color: var(--ink-2); }
 .tag.danger { color: var(--bad); background: var(--bad-soft); border-color: transparent; }
 
+.db-card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.db-stats { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-bottom: 12px; }
+.db-stats div { font-size: 13px; color: var(--ink-2); }
+.db-stats div b { display: block; font-size: 16px; font-weight: 700; color: var(--ink); }
+.db-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.db-actions button {
+  padding: 7px 14px; font-size: 13.5px; font-weight: 650; border-radius: 9px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--card); color: var(--ink);
+}
+.db-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+.db-actions button:focus-visible, .file-pick:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.db-actions .primary { background: var(--accent); border-color: transparent; color: #fff; }
+.db-actions .primary:hover:not(:disabled) { background: var(--accent-deep); }
+.db-actions .warn { color: var(--bad); }
+.db-actions .warn:hover:not(:disabled) { border-color: var(--bad); }
+.file-pick {
+  padding: 7px 14px; font-size: 13.5px; font-weight: 600; border-radius: 9px; cursor: pointer;
+  border: 1px dashed var(--line); color: var(--ink-2);
+}
+.file-pick:hover { border-color: var(--accent); color: var(--ink); }
+.file-pick input { display: none; }
+.db-filename { font-size: 12.5px; color: var(--ink-2); overflow-wrap: anywhere; }
+.db-hint { font-size: 12.5px; color: var(--ink-2); margin-top: 10px; line-height: 1.6; }
+.db-hint b { color: var(--bad); }
+.db-hint code {
+  font-family: ui-monospace, monospace; font-size: 12px;
+  background: var(--bg); border-radius: 5px; padding: 1px 5px;
+}
+.db-status { font-size: 13px; margin-top: 8px; min-height: 1.2em; }
+.db-status.ok { color: var(--ok); }
+.db-status.bad { color: var(--bad); }
+
 .settings-bar {
   position: sticky; bottom: 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
   background: var(--bg); border-top: 1px solid var(--line); padding: 12px 0;
@@ -483,6 +515,28 @@ footer a { color: var(--accent-deep); text-decoration: none; }
         <span class="cap" id="settings-path"></span>
       </div>
       <div class="settings-note" id="settings-note" hidden></div>
+
+      <div class="set-group db-group">
+        <h3>数据库</h3>
+        <div class="db-card">
+          <div class="db-stats" id="db-stats"></div>
+          <div class="db-actions">
+            <button type="button" class="primary" id="db-export">导出数据库</button>
+            <label class="file-pick">
+              选择备份文件…
+              <input type="file" id="db-file" accept=".db,.sqlite,.sqlite3,application/octet-stream">
+            </label>
+            <span class="db-filename" id="db-filename"></span>
+            <button type="button" class="warn" id="db-import" disabled>导入并覆盖</button>
+          </div>
+          <div class="db-hint">
+            导出的是一致性快照，可直接作为备份保存。导入会<b>整库覆盖</b>当前数据，
+            覆盖前自动备份到 <code>db/</code> 目录，完成后 Worker 会自动重启。
+          </div>
+          <div class="db-status" id="db-status"></div>
+        </div>
+      </div>
+
       <form id="settings-form"></form>
       <div class="settings-bar">
         <button type="button" class="primary" id="settings-save">保存修改</button>
@@ -1222,6 +1276,7 @@ function renderSettings(data) {
 }
 
 async function loadSettings() {
+  loadDatabaseInfo();
   try {
     const resp = await fetch("api/settings");
     if (!resp.ok) throw new Error("接口返回 " + resp.status);
@@ -1230,6 +1285,114 @@ async function loadSettings() {
     $("settings-form").replaceChildren(el("div", "u-state", "加载失败：" + err.message));
   }
 }
+
+// ---- 数据库导入 / 导出 ----
+function setDBStatus(text, kind) {
+  const node = $("db-status");
+  node.textContent = text;
+  node.className = "db-status" + (kind ? " " + kind : "");
+}
+
+async function loadDatabaseInfo() {
+  const stats = $("db-stats");
+  try {
+    const resp = await fetch("api/db/info");
+    if (!resp.ok) throw new Error("接口返回 " + resp.status);
+    const info = await resp.json();
+    const cell = (value, label) => {
+      const box = el("div");
+      box.append(el("b", null, value), label);
+      return box;
+    };
+    stats.replaceChildren(
+      cell(fmtBytes(info.size_bytes), "数据库大小"),
+      cell(String(info.users), "用户记录"),
+      cell(String(info.records), "下载记录"),
+      cell(String(info.bans), "封禁记录"),
+      cell(fmtBytes(info.max_upload_bytes), "导入上限")
+    );
+    stats.title = info.path;
+  } catch (err) {
+    stats.replaceChildren(el("div", null, "无法读取数据库信息：" + err.message));
+  }
+}
+
+$("db-export").addEventListener("click", async () => {
+  const button = $("db-export");
+  button.disabled = true;
+  setDBStatus("正在生成快照…", "");
+  try {
+    const resp = await fetch("api/db/export");
+    if (!resp.ok) {
+      const body = await resp.json().catch(() => ({}));
+      throw new Error(body.error || "接口返回 " + resp.status);
+    }
+    const blob = await resp.blob();
+    // Reuse the filename the server chose, if it sent one.
+    const disposition = resp.headers.get("Content-Disposition") || "";
+    const match = disposition.match(/filename="([^"]+)"/);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = match ? match[1] : "stickerdownloader.db";
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    setDBStatus("已导出 " + fmtBytes(blob.size), "ok");
+  } catch (err) {
+    setDBStatus("导出失败：" + err.message, "bad");
+  } finally {
+    button.disabled = false;
+  }
+});
+
+$("db-file").addEventListener("change", () => {
+  const file = $("db-file").files[0];
+  $("db-filename").textContent = file ? file.name + "（" + fmtBytes(file.size) + "）" : "";
+  $("db-import").disabled = !file;
+  setDBStatus("", "");
+});
+
+$("db-import").addEventListener("click", async () => {
+  const file = $("db-file").files[0];
+  if (!file) return;
+  if (!window.confirm("导入会用「" + file.name + "」整库覆盖当前数据库。\n\n" +
+      "当前数据会先自动备份到 db/ 目录，之后 Worker 会重启。\n\n确认继续吗？")) return;
+  if (!window.confirm("再次确认：覆盖当前数据库？此操作会替换全部用户、下载记录和封禁数据。")) return;
+
+  const button = $("db-import");
+  button.disabled = true;
+  setDBStatus("正在上传并校验…", "");
+  try {
+    const form = new FormData();
+    form.append("database", file);
+    const resp = await fetch("api/db/import", { method: "POST", body: form });
+    const body = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(body.error || "接口返回 " + resp.status);
+
+    setDBStatus("导入成功，原库已备份至 " + body.backup + "，正在重启…", "ok");
+    $("db-file").value = "";
+    $("db-filename").textContent = "";
+    // The worker exits and the supervisor brings it back; wait it out.
+    for (let i = 0; i < 20; i++) {
+      await new Promise(r => setTimeout(r, 1000));
+      try {
+        const probe = await fetch("api/db/info", { cache: "no-store" });
+        if (probe.ok) {
+          setDBStatus("导入完成，原库备份：" + body.backup, "ok");
+          loadDatabaseInfo();
+          refresh(true);
+          return;
+        }
+      } catch { /* still restarting */ }
+    }
+    setDBStatus("导入已完成，但服务重启超时，请检查服务端日志", "bad");
+  } catch (err) {
+    setDBStatus("导入失败：" + err.message, "bad");
+    button.disabled = false;
+  }
+});
 
 $("settings-reset").addEventListener("click", () => loadSettings());
 
